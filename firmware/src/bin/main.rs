@@ -151,6 +151,12 @@ async fn main(spawner: Spawner) -> ! {
 
         let a_data = lib::max31855::interpret_max31855_read(buffer);
         lib::max31855::log_max31855_reading(&a_data);
+        match a_data {
+            lib::max31855::MAX31855Reading::Valid { temp, .. } => {
+                lib::web::set_current_temperature(temp as i32);
+            }
+            _ => {}
+        }
 
         cs_b.set_low();
         let mut buffer = [0; 4];

@@ -49,10 +49,10 @@ document.addEventListener("DOMContentLoaded", function() {
           return response.json();
         })
         .then(data => {
-          readout.textContent = `${data.current_temp}/${data.setpoint_temp} °F for ${data.run_time_elapsed}/${data.run_time_total} seconds`
+          readout.textContent = `${data.current_temp}/${data.setpoint_temp} °C for ${data.run_time_elapsed}/${data.run_time_total} seconds`
         })
         .catch(error => {
           console.error('Fetch error:', error);
         });
-    }, 1000);
+    }, 250);
 });

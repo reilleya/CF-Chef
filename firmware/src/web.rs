@@ -2,6 +2,7 @@ use embassy_net::Stack;
 use embassy_time::Duration;
 use esp_alloc as _;
 
+use core::sync::atomic::{AtomicI32, Ordering::Relaxed};
 use picoserve::{
     AppBuilder, AppRouter, Router,
     extract::Form,
@@ -11,19 +12,17 @@ use picoserve::{
     routing::{get, parse_path_segment, post},
 };
 
-use core::cell::RefCell;
-
 #[derive(serde::Deserialize)]
 struct FormValue {
     temperature: i32,
     time: i32,
 }
 
-struct AppState {
-    current_temp: RefCell<i32>,
-    setpoint_temp: RefCell<i32>,
-    run_time_elapsed: RefCell<i32>,
-    run_time_total: RefCell<i32>,
+pub struct AppState {
+    current_temp: AtomicI32,
+    setpoint_temp: AtomicI32,
+    run_time_elapsed: AtomicI32,
+    run_time_total: AtomicI32,
 }
 
 #[derive(serde::Serialize)]
@@ -45,10 +44,10 @@ impl picoserve::extract::FromRef<AppState> for AppStateValue {
         }: &AppState,
     ) -> Self {
         Self {
-            current_temp: *current_temp.borrow(),
-            setpoint_temp: *setpoint_temp.borrow(),
-            run_time_elapsed: *run_time_elapsed.borrow(),
-            run_time_total: *run_time_total.borrow(),
+            current_temp: current_temp.load(Relaxed),
+            setpoint_temp: setpoint_temp.load(Relaxed),
+            run_time_elapsed: run_time_elapsed.load(Relaxed),
+            run_time_total: run_time_total.load(Relaxed),
         }
     }
 }
@@ -59,13 +58,15 @@ async fn get_state(State(value): State<AppStateValue>) -> impl IntoResponse {
 
 async fn increment_temperature() -> impl IntoResponseWithState<AppState> {
     Redirect::to(".").with_state_update(async |state: &AppState| {
-        *state.setpoint_temp.borrow_mut() += 1;
+        // TODO: use fetch_add
+        let old_setpoint = state.setpoint_temp.load(Relaxed);
+        state.setpoint_temp.store(old_setpoint + 1, Relaxed);
     })
 }
 
 async fn set_temperature(value: i32) -> impl IntoResponseWithState<AppState> {
     Redirect::to("..").with_state_update(async move |state: &AppState| {
-        *state.setpoint_temp.borrow_mut() = value;
+        state.setpoint_temp.store(value, Relaxed);
     })
 }
 
@@ -74,25 +75,29 @@ async fn set_config(
 ) -> impl IntoResponseWithState<AppState> {
     picoserve::response::Json(0).with_state_update(async move |state: &AppState| {
         // TODO: better response than Json(0)
-        *state.setpoint_temp.borrow_mut() = temperature; // TODO: validate?
-        *state.run_time_total.borrow_mut() = time;
+        state.setpoint_temp.store(temperature, Relaxed); // TODO: validate?
+        state.run_time_total.store(time, Relaxed);
         // TODO: start the run
     })
 }
 
 pub struct Application;
 
+pub static STATE: AppState = AppState {
+    current_temp: AtomicI32::new(0),
+    setpoint_temp: AtomicI32::new(0),
+    run_time_elapsed: AtomicI32::new(0),
+    run_time_total: AtomicI32::new(0),
+};
+
+pub fn set_current_temperature(value: i32) {
+    STATE.current_temp.store(value, Relaxed);
+}
+
 impl AppBuilder for Application {
     type PathRouter = impl routing::PathRouter;
 
     fn build_app(self) -> picoserve::Router<Self::PathRouter> {
-        let state = AppState {
-            current_temp: 0.into(),
-            setpoint_temp: 0.into(),
-            run_time_elapsed: 0.into(),
-            run_time_total: 0.into(),
-        };
-
         picoserve::Router::new()
             .route(
                 "/",
@@ -110,7 +115,7 @@ impl AppBuilder for Application {
             .route(("/set", parse_path_segment()), get(set_temperature))
             .route("/get_state", get(get_state))
             .route("/set_config", post(set_config))
-            .with_state(state)
+            .with_state(&STATE)
     }
 }
 
