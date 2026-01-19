@@ -13,6 +13,8 @@ use esp_alloc as _;
 #[cfg(target_arch = "riscv32")]
 use esp_hal::interrupt::software::SoftwareInterruptControl;
 use esp_hal::{clock::CpuClock, ram, rng::Rng, timer::timg::TimerGroup};
+use esp_hal::time::Rate;
+use esp_hal::gpio::{self, Input, InputConfig, Level, Output, OutputConfig};
 use esp_println::println;
 use esp_radio::Controller;
 
@@ -41,6 +43,14 @@ async fn main(spawner: Spawner) -> ! {
     esp_println::logger::init_logger_from_env();
     let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
     let peripherals = esp_hal::init(config);
+
+    let rmt = esp_hal::rmt::Rmt::new(peripherals.RMT, Rate::from_mhz(80)).unwrap();
+    let rmt_output = Output::new(peripherals.GPIO0, Level::Low, Default::default());
+    let mut leds = lib::led::Led {
+        pixel_buffer: [lib::led::Rgb { r: 0, g: 0, b: 0 }; 1],
+        rmt_channel: Some(lib::led::Led::configure_rmt(rmt, rmt_output)),
+        last_update_time: esp_hal::time::Instant::EPOCH,
+    };
 
     esp_alloc::heap_allocator!(#[ram(reclaimed)] size: 64 * 1024);
     esp_alloc::heap_allocator!(size: 36 * 1024);
@@ -113,6 +123,9 @@ async fn main(spawner: Spawner) -> ! {
     }
 
     loop {
+        leds.set_pixel(0, lib::led::color::GREEN);
+        Timer::after(Duration::from_secs(1)).await;
+        leds.set_pixel(0, lib::led::color::RED);
         Timer::after(Duration::from_secs(1)).await;
     }
 }

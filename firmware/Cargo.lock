@@ -969,6 +969,7 @@ dependencies = [
 name = "firmware"
 version = "0.1.0"
 dependencies = [
+ "bitfield",
  "critical-section",
  "defmt 1.0.1",
  "edge-dhcp",

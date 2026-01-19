@@ -14,3 +14,4 @@ macro_rules! mk_static {
 
 pub mod web;
 pub mod wifi;
+pub mod led;

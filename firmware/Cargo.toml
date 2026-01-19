@@ -69,6 +69,8 @@ picoserve = { version = "0.17.1", features = ["embassy", "json"] }
 serde = { version = "1.0.228", features = ["derive"], default-features = false }
 heapless = { version = "0.9.2", features = ["serde"] }
 
+bitfield = "0.19"
+
 [profile.dev]
 # Rust debug is too slow.
 # For debug builds always builds with some optimization
