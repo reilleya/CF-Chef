@@ -12,6 +12,7 @@ macro_rules! mk_static {
     }};
 }
 
+pub mod led;
+pub mod max31855;
 pub mod web;
 pub mod wifi;
-pub mod led;

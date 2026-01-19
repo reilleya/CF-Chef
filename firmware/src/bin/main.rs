@@ -10,11 +10,14 @@ use embassy_net::{Ipv4Cidr, StackResources, StaticConfigV4};
 use embassy_time::{Duration, Timer};
 use esp_alloc as _;
 //use esp_backtrace as _;
+use esp_hal::gpio::{Level, Output, OutputConfig};
 #[cfg(target_arch = "riscv32")]
 use esp_hal::interrupt::software::SoftwareInterruptControl;
-use esp_hal::{clock::CpuClock, ram, rng::Rng, timer::timg::TimerGroup};
+use esp_hal::spi::Mode as SpiMode;
+use esp_hal::spi::master::Config as SpiConfig;
+use esp_hal::spi::master::Spi;
 use esp_hal::time::Rate;
-use esp_hal::gpio::{self, Input, InputConfig, Level, Output, OutputConfig};
+use esp_hal::{clock::CpuClock, ram, rng::Rng, timer::timg::TimerGroup};
 use esp_println::println;
 use esp_radio::Controller;
 
@@ -44,6 +47,10 @@ async fn main(spawner: Spawner) -> ! {
     let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
     let peripherals = esp_hal::init(config);
 
+    esp_alloc::heap_allocator!(#[ram(reclaimed)] size: 64 * 1024);
+    esp_alloc::heap_allocator!(size: 36 * 1024);
+
+    // Set up LEDs
     let rmt = esp_hal::rmt::Rmt::new(peripherals.RMT, Rate::from_mhz(80)).unwrap();
     let rmt_output = Output::new(peripherals.GPIO0, Level::Low, Default::default());
     let mut leds = lib::led::Led {
@@ -52,8 +59,22 @@ async fn main(spawner: Spawner) -> ! {
         last_update_time: esp_hal::time::Instant::EPOCH,
     };
 
-    esp_alloc::heap_allocator!(#[ram(reclaimed)] size: 64 * 1024);
-    esp_alloc::heap_allocator!(size: 36 * 1024);
+    // Set up heater output
+    let mut heater_output = Output::new(peripherals.GPIO1, Level::Low, OutputConfig::default());
+
+    // Set up SPI bus for MAX31855 thermocouples
+    let mut spi_bus = Spi::new(
+        peripherals.SPI2,
+        SpiConfig::default()
+            .with_frequency(Rate::from_mhz(60))
+            .with_mode(SpiMode::_0),
+    )
+    .unwrap()
+    .with_sck(peripherals.GPIO5)
+    .with_miso(peripherals.GPIO10);
+    let mut cs_a = Output::new(peripherals.GPIO4, Level::High, OutputConfig::default());
+    let mut cs_b = Output::new(peripherals.GPIO6, Level::High, OutputConfig::default());
+    let mut cs_c = Output::new(peripherals.GPIO7, Level::High, OutputConfig::default());
 
     let timg0 = TimerGroup::new(peripherals.TIMG0);
     #[cfg(target_arch = "riscv32")]
@@ -123,9 +144,35 @@ async fn main(spawner: Spawner) -> ! {
     }
 
     loop {
+        cs_a.set_low();
+        let mut buffer = [0; 4];
+        spi_bus.read(&mut buffer).unwrap();
+        cs_a.set_high();
+
+        let a_data = lib::max31855::interpret_max31855_read(buffer);
+        lib::max31855::log_max31855_reading(&a_data);
+
+        cs_b.set_low();
+        let mut buffer = [0; 4];
+        spi_bus.read(&mut buffer).unwrap();
+        cs_b.set_high();
+        let b_data = lib::max31855::interpret_max31855_read(buffer);
+        lib::max31855::log_max31855_reading(&b_data);
+
+        cs_c.set_low();
+        let mut buffer = [0; 4];
+        spi_bus.read(&mut buffer).unwrap();
+        cs_c.set_high();
+        let c_data = lib::max31855::interpret_max31855_read(buffer);
+        lib::max31855::log_max31855_reading(&c_data);
+
+        println!("");
+
         leds.set_pixel(0, lib::led::color::GREEN);
+        heater_output.set_low();
         Timer::after(Duration::from_secs(1)).await;
         leds.set_pixel(0, lib::led::color::RED);
+        heater_output.set_high();
         Timer::after(Duration::from_secs(1)).await;
     }
 }
