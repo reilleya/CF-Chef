@@ -143,6 +143,14 @@ async fn main(spawner: Spawner) -> ! {
         ));
     }
 
+    let mut started = false;
+    let mut ended = false;
+    let mut setpoint_temp = 0;
+    let mut run_start_time = esp_hal::time::Instant::now();
+    let mut run_duration = esp_hal::time::Duration::from_secs(0);
+
+    leds.set_pixel(0, lib::led::color::OFF);
+
     loop {
         cs_a.set_low();
         let mut buffer = [0; 4];
@@ -174,11 +182,45 @@ async fn main(spawner: Spawner) -> ! {
 
         println!("");
 
-        leds.set_pixel(0, lib::led::color::GREEN);
+        if !started {
+            if lib::web::get_run_started() {
+                run_start_time = esp_hal::time::Instant::now();
+                started = true;
+                setpoint_temp = lib::web::get_setpoint_temperature();
+                run_duration =
+                    esp_hal::time::Duration::from_secs(lib::web::get_run_total_time() as u64);
+            }
+        } else {
+            let elapsed = esp_hal::time::Instant::now() - run_start_time;
+            if elapsed >= run_duration {
+                ended = true;
+            }
+            if ended {
+                heater_output.set_low();
+                leds.set_pixel(0, lib::led::color::PURPLE);
+            } else {
+                lib::web::set_elapsed_time(elapsed.as_secs() as i32);
+                leds.set_pixel(0, lib::led::color::GREEN);
+                match a_data {
+                    lib::max31855::MAX31855Reading::Valid { temp, .. } => {
+                        if temp < setpoint_temp as f32 {
+                            heater_output.set_high();
+                        } else {
+                            heater_output.set_low();
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        /*leds.set_pixel(0, lib::led::color::GREEN);
         heater_output.set_low();
         Timer::after(Duration::from_secs(1)).await;
         leds.set_pixel(0, lib::led::color::RED);
         heater_output.set_high();
-        Timer::after(Duration::from_secs(1)).await;
+        Timer::after(Duration::from_secs(1)).await;*/
+
+        Timer::after(Duration::from_millis(100)).await;
     }
 }

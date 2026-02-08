@@ -56,7 +56,7 @@ pub fn log_max31855_reading(reading: &MAX31855Reading) {
             short_to_gnd,
         } => {
             println!(
-                "Fault detected: Open Circuit: {open_circuit}, Short to VCC: {short_to_vcc}, Short to GND: {short_to_gnd}"
+                "Fault detected! Open Circuit: {open_circuit}, Short to VCC: {short_to_vcc}, Short to GND: {short_to_gnd}"
             );
         }
     }

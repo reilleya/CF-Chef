@@ -2,7 +2,7 @@ use embassy_net::Stack;
 use embassy_time::Duration;
 use esp_alloc as _;
 
-use core::sync::atomic::{AtomicI32, Ordering::Relaxed};
+use core::sync::atomic::{AtomicBool, AtomicI32, Ordering::Relaxed};
 use picoserve::{
     AppBuilder, AppRouter, Router,
     extract::Form,
@@ -23,6 +23,7 @@ pub struct AppState {
     setpoint_temp: AtomicI32,
     run_time_elapsed: AtomicI32,
     run_time_total: AtomicI32,
+    run_started: AtomicBool,
 }
 
 #[derive(serde::Serialize)]
@@ -31,6 +32,7 @@ struct AppStateValue {
     setpoint_temp: i32,
     run_time_elapsed: i32,
     run_time_total: i32,
+    run_started: bool,
 }
 
 impl picoserve::extract::FromRef<AppState> for AppStateValue {
@@ -40,6 +42,7 @@ impl picoserve::extract::FromRef<AppState> for AppStateValue {
             setpoint_temp,
             run_time_elapsed,
             run_time_total,
+            run_started,
             ..
         }: &AppState,
     ) -> Self {
@@ -48,6 +51,7 @@ impl picoserve::extract::FromRef<AppState> for AppStateValue {
             setpoint_temp: setpoint_temp.load(Relaxed),
             run_time_elapsed: run_time_elapsed.load(Relaxed),
             run_time_total: run_time_total.load(Relaxed),
+            run_started: run_started.load(Relaxed),
         }
     }
 }
@@ -77,7 +81,7 @@ async fn set_config(
         // TODO: better response than Json(0)
         state.setpoint_temp.store(temperature, Relaxed); // TODO: validate?
         state.run_time_total.store(time, Relaxed);
-        // TODO: start the run
+        state.run_started.store(true, Relaxed);
     })
 }
 
@@ -88,10 +92,27 @@ pub static STATE: AppState = AppState {
     setpoint_temp: AtomicI32::new(0),
     run_time_elapsed: AtomicI32::new(0),
     run_time_total: AtomicI32::new(0),
+    run_started: AtomicBool::new(false),
 };
 
 pub fn set_current_temperature(value: i32) {
     STATE.current_temp.store(value, Relaxed);
+}
+
+pub fn set_elapsed_time(value: i32) {
+    STATE.run_time_elapsed.store(value, Relaxed);
+}
+
+pub fn get_run_started() -> bool {
+    STATE.run_started.load(Relaxed)
+}
+
+pub fn get_run_total_time() -> i32 {
+    STATE.run_time_total.load(Relaxed)
+}
+
+pub fn get_setpoint_temperature() -> i32 {
+    STATE.setpoint_temp.load(Relaxed)
 }
 
 impl AppBuilder for Application {
