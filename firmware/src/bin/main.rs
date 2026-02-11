@@ -72,9 +72,11 @@ async fn main(spawner: Spawner) -> ! {
     .unwrap()
     .with_sck(peripherals.GPIO5)
     .with_miso(peripherals.GPIO10);
-    let mut cs_a = Output::new(peripherals.GPIO4, Level::High, OutputConfig::default());
-    let mut cs_b = Output::new(peripherals.GPIO6, Level::High, OutputConfig::default());
-    let mut cs_c = Output::new(peripherals.GPIO7, Level::High, OutputConfig::default());
+    let mut cs_pins = [
+        Output::new(peripherals.GPIO4, Level::High, OutputConfig::default()),
+        Output::new(peripherals.GPIO6, Level::High, OutputConfig::default()),
+        Output::new(peripherals.GPIO7, Level::High, OutputConfig::default()),
+    ];
 
     let timg0 = TimerGroup::new(peripherals.TIMG0);
     #[cfg(target_arch = "riscv32")]
@@ -152,34 +154,33 @@ async fn main(spawner: Spawner) -> ! {
     leds.set_pixel(0, lib::led::color::OFF);
 
     loop {
-        cs_a.set_low();
-        let mut buffer = [0; 4];
-        spi_bus.read(&mut buffer).unwrap();
-        cs_a.set_high();
+        let mut temperatures = [0.0; 3];
+        let enabled_zones = [true, false, false]; // TODO: add zone enable/disable to configuration form
+        for zone in 0..3 {
+            cs_pins[zone].set_low();
+            let mut buffer = [0; 4];
+            spi_bus.read(&mut buffer).unwrap();
+            cs_pins[zone].set_high();
 
-        let a_data = lib::max31855::interpret_max31855_read(buffer);
-        lib::max31855::log_max31855_reading(&a_data);
-        match a_data {
-            lib::max31855::MAX31855Reading::Valid { temp, .. } => {
-                lib::web::set_current_temperature(temp as i32);
+            let reading = lib::max31855::interpret_max31855_read(buffer);
+            lib::max31855::log_max31855_reading(&reading);
+            if let lib::max31855::MAX31855Reading::Valid { temp, .. } = reading {
+                lib::web::set_zone_temperature(zone, temp as i32);
+                temperatures[zone] = temp;
             }
-            _ => {}
+            // TODO: complain if there is a fault reading and this zone is enabled
         }
 
-        cs_b.set_low();
-        let mut buffer = [0; 4];
-        spi_bus.read(&mut buffer).unwrap();
-        cs_b.set_high();
-        let b_data = lib::max31855::interpret_max31855_read(buffer);
-        lib::max31855::log_max31855_reading(&b_data);
 
-        cs_c.set_low();
-        let mut buffer = [0; 4];
-        spi_bus.read(&mut buffer).unwrap();
-        cs_c.set_high();
-        let c_data = lib::max31855::interpret_max31855_read(buffer);
-        lib::max31855::log_max31855_reading(&c_data);
+        let average_temp: f32 = enabled_zones
+            .iter()
+            .enumerate()
+            .filter_map(|(i, &enabled)| if enabled { Some(temperatures[i]) } else { None })
+            .sum::<f32>()
+            / enabled_zones.iter().filter(|&&enabled| enabled).count() as f32;
 
+        lib::web::set_current_temperature(average_temp as i32);
+        println!("Average temperature: {average_temp:.2} °C");
         println!("");
 
         if !started {
@@ -201,15 +202,10 @@ async fn main(spawner: Spawner) -> ! {
             } else {
                 lib::web::set_elapsed_time(elapsed.as_secs() as i32);
                 leds.set_pixel(0, lib::led::color::GREEN);
-                match a_data {
-                    lib::max31855::MAX31855Reading::Valid { temp, .. } => {
-                        if temp < setpoint_temp as f32 {
-                            heater_output.set_high();
-                        } else {
-                            heater_output.set_low();
-                        }
-                    }
-                    _ => {}
+                if average_temp < setpoint_temp as f32 {
+                    heater_output.set_high();
+                } else {
+                    heater_output.set_low();
                 }
             }
         }

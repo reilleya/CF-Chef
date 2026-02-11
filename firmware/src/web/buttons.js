@@ -26,20 +26,12 @@ document.addEventListener("DOMContentLoaded", function() {
     xhr.send(request);
   });
 
-  const incrementButton = document.getElementById("increment");
-  incrementButton.addEventListener("click", function() {
-      fetch('/increment')
-        .then(response => {
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-          return void 0;
-        }).catch(error => {
-          console.error('Fetch error:', error);
-        });
-  });
-
   const readout = document.getElementById("readout");
+  const zone_temps = [
+    document.getElementById("zone1Temp"),
+    document.getElementById("zone2Temp"),
+    document.getElementById("zone3Temp"),
+  ];
   let readoutInterval = setInterval(function() {
       fetch('/get_state')
         .then(response => {
@@ -50,6 +42,9 @@ document.addEventListener("DOMContentLoaded", function() {
         })
         .then(data => {
           readout.textContent = `${data.current_temp}/${data.setpoint_temp} °C for ${data.run_time_elapsed}/${data.run_time_total} seconds`
+          for (let i = 0; i < 3; i++) {
+            zone_temps[i].innerHTML = `${data.zone_temps[i]} °C`
+          }
         })
         .catch(error => {
           console.error('Fetch error:', error);

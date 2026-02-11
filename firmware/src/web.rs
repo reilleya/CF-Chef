@@ -7,9 +7,9 @@ use picoserve::{
     AppBuilder, AppRouter, Router,
     extract::Form,
     extract::State,
-    response::{File, IntoResponse, IntoResponseWithState, Redirect, with_state::WithStateUpdate},
+    response::{File, IntoResponse, IntoResponseWithState, with_state::WithStateUpdate},
     routing,
-    routing::{get, parse_path_segment, post},
+    routing::{get, post},
 };
 
 #[derive(serde::Deserialize)]
@@ -19,6 +19,7 @@ struct FormValue {
 }
 
 pub struct AppState {
+    zone_temps: [AtomicI32; 3],
     current_temp: AtomicI32,
     setpoint_temp: AtomicI32,
     run_time_elapsed: AtomicI32,
@@ -28,6 +29,7 @@ pub struct AppState {
 
 #[derive(serde::Serialize)]
 struct AppStateValue {
+    zone_temps: [i32; 3],
     current_temp: i32,
     setpoint_temp: i32,
     run_time_elapsed: i32,
@@ -43,10 +45,16 @@ impl picoserve::extract::FromRef<AppState> for AppStateValue {
             run_time_elapsed,
             run_time_total,
             run_started,
+            zone_temps,
             ..
         }: &AppState,
     ) -> Self {
         Self {
+            zone_temps: [
+                zone_temps[0].load(Relaxed),
+                zone_temps[1].load(Relaxed),
+                zone_temps[2].load(Relaxed),
+            ],
             current_temp: current_temp.load(Relaxed),
             setpoint_temp: setpoint_temp.load(Relaxed),
             run_time_elapsed: run_time_elapsed.load(Relaxed),
@@ -58,20 +66,6 @@ impl picoserve::extract::FromRef<AppState> for AppStateValue {
 
 async fn get_state(State(value): State<AppStateValue>) -> impl IntoResponse {
     picoserve::response::Json(value)
-}
-
-async fn increment_temperature() -> impl IntoResponseWithState<AppState> {
-    Redirect::to(".").with_state_update(async |state: &AppState| {
-        // TODO: use fetch_add
-        let old_setpoint = state.setpoint_temp.load(Relaxed);
-        state.setpoint_temp.store(old_setpoint + 1, Relaxed);
-    })
-}
-
-async fn set_temperature(value: i32) -> impl IntoResponseWithState<AppState> {
-    Redirect::to("..").with_state_update(async move |state: &AppState| {
-        state.setpoint_temp.store(value, Relaxed);
-    })
 }
 
 async fn set_config(
@@ -88,12 +82,17 @@ async fn set_config(
 pub struct Application;
 
 pub static STATE: AppState = AppState {
+    zone_temps: [AtomicI32::new(0), AtomicI32::new(0), AtomicI32::new(0)],
     current_temp: AtomicI32::new(0),
     setpoint_temp: AtomicI32::new(0),
     run_time_elapsed: AtomicI32::new(0),
     run_time_total: AtomicI32::new(0),
     run_started: AtomicBool::new(false),
 };
+
+pub fn set_zone_temperature(zone: usize, value: i32) {
+    STATE.zone_temps[zone].store(value, Relaxed);
+}
 
 pub fn set_current_temperature(value: i32) {
     STATE.current_temp.store(value, Relaxed);
@@ -132,8 +131,6 @@ impl AppBuilder for Application {
                 "/styles.css",
                 routing::get_service(File::css(include_str!("web/styles.css"))),
             )
-            .route("/increment", get(increment_temperature))
-            .route(("/set", parse_path_segment()), get(set_temperature))
             .route("/get_state", get(get_state))
             .route("/set_config", post(set_config))
             .with_state(&STATE)
