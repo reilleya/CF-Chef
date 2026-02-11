@@ -9,7 +9,6 @@ use embassy_executor::Spawner;
 use embassy_net::{Ipv4Cidr, StackResources, StaticConfigV4};
 use embassy_time::{Duration, Timer};
 use esp_alloc as _;
-//use esp_backtrace as _;
 use esp_hal::gpio::{Level, Output, OutputConfig};
 #[cfg(target_arch = "riscv32")]
 use esp_hal::interrupt::software::SoftwareInterruptControl;
@@ -36,6 +35,8 @@ fn panic(panic_info: &core::panic::PanicInfo) -> ! {
         println!("Panic occurred but can't get location information...");
     }
 
+    // TODO: what happens to the GPIO pins here?
+
     loop {}
 }
 
@@ -50,7 +51,7 @@ async fn main(spawner: Spawner) -> ! {
     esp_alloc::heap_allocator!(#[ram(reclaimed)] size: 64 * 1024);
     esp_alloc::heap_allocator!(size: 36 * 1024);
 
-    // Set up LEDs
+    // Set up LED
     let rmt = esp_hal::rmt::Rmt::new(peripherals.RMT, Rate::from_mhz(80)).unwrap();
     let rmt_output = Output::new(peripherals.GPIO0, Level::Low, Default::default());
     let mut leds = lib::led::Led {
@@ -72,7 +73,7 @@ async fn main(spawner: Spawner) -> ! {
     .unwrap()
     .with_sck(peripherals.GPIO5)
     .with_miso(peripherals.GPIO10);
-    let mut cs_pins = [
+    let mut spi_cs_pins = [
         Output::new(peripherals.GPIO4, Level::High, OutputConfig::default()),
         Output::new(peripherals.GPIO6, Level::High, OutputConfig::default()),
         Output::new(peripherals.GPIO7, Level::High, OutputConfig::default()),
@@ -157,10 +158,10 @@ async fn main(spawner: Spawner) -> ! {
         let mut temperatures = [0.0; 3];
         let enabled_zones = [true, false, false]; // TODO: add zone enable/disable to configuration form
         for zone in 0..3 {
-            cs_pins[zone].set_low();
+            spi_cs_pins[zone].set_low();
             let mut buffer = [0; 4];
             spi_bus.read(&mut buffer).unwrap();
-            cs_pins[zone].set_high();
+            spi_cs_pins[zone].set_high();
 
             let reading = lib::max31855::interpret_max31855_read(buffer);
             lib::max31855::log_max31855_reading(&reading);
@@ -170,7 +171,6 @@ async fn main(spawner: Spawner) -> ! {
             }
             // TODO: complain if there is a fault reading and this zone is enabled
         }
-
 
         let average_temp: f32 = enabled_zones
             .iter()
@@ -209,13 +209,6 @@ async fn main(spawner: Spawner) -> ! {
                 }
             }
         }
-
-        /*leds.set_pixel(0, lib::led::color::GREEN);
-        heater_output.set_low();
-        Timer::after(Duration::from_secs(1)).await;
-        leds.set_pixel(0, lib::led::color::RED);
-        heater_output.set_high();
-        Timer::after(Duration::from_secs(1)).await;*/
 
         Timer::after(Duration::from_millis(100)).await;
     }
