@@ -3,4 +3,5 @@
   (lib (name "MPM3606")(type "KiCad")(uri "${KIPRJMOD}/components/ul_MPM3606AGQV-P/KiCADv6/footprints.pretty")(options "")(descr ""))
   (lib (name "LM73100")(type "KiCad")(uri "${KIPRJMOD}/components/LM73100RPWR/.pretty")(options "")(descr ""))
   (lib (name "TPS1H200")(type "KiCad")(uri "${KIPRJMOD}/components/TPS1H200AQDGNRQ1/.pretty")(options "")(descr ""))
+  (lib (name "TPS2121RUXR")(type "KiCad")(uri "${KIPRJMOD}/components/TPS2121RUXR/.pretty")(options "")(descr ""))
 )

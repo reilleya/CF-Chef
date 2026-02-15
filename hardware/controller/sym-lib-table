@@ -3,4 +3,5 @@
   (lib (name "TPS1H200")(type "KiCad")(uri "${KIPRJMOD}/components/TPS1H200AQDGNRQ1/TPS1H200AQDGNRQ1.kicad_sym")(options "")(descr ""))
   (lib (name "MPM3606")(type "KiCad")(uri "${KIPRJMOD}/components/ul_MPM3606AGQV-P/KiCADv6/2023-10-01_20-54-10.kicad_sym")(options "")(descr ""))
   (lib (name "LM73100")(type "KiCad")(uri "${KIPRJMOD}/components/LM73100RPWR/LM73100RPWR.kicad_sym")(options "")(descr ""))
+  (lib (name "TPS2121")(type "KiCad")(uri "${KIPRJMOD}/components/TPS2121RUXR/TPS2121RUXR.kicad_sym")(options "")(descr ""))
 )
