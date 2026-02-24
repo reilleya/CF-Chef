@@ -4397,7 +4397,7 @@
 			)
 		)
 		(pin "1"
-			(uuid "4bc7a59b-388c-443b-af41-535c19a69b4e")
+			(uuid "4bc7a59b-388c-443b-af41-535c19a69b4f")
 		)
 		(instances
 			(project "controller"
@@ -4623,10 +4623,10 @@
 			)
 		)
 		(pin "1"
-			(uuid "e4d60c04-163a-446a-9814-ca3ffe084169")
+			(uuid "e4d60c04-163a-446a-9814-ca3ffe08416a")
 		)
 		(pin "2"
-			(uuid "d6b183ea-b262-4eba-9402-40b27fb8c69f")
+			(uuid "d6b183ea-b262-4eba-9402-40b27fb8c6a0")
 		)
 		(instances
 			(project "controller"
@@ -4735,7 +4735,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Inductor_SMD:L_0805_2012Metric"
+		(property "Footprint" "Inductor_SMD:L_APV_ANR3015"
 			(at 133.35 115.57 0)
 			(effects
 				(font
@@ -4762,7 +4762,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "C69486"
+		(property "LCSC" "C42429305"
 			(at 133.35 115.57 90)
 			(effects
 				(font
@@ -4973,7 +4973,7 @@
 			)
 		)
 		(pin "1"
-			(uuid "96ca16ff-6551-4c45-8030-b42749295539")
+			(uuid "96ca16ff-6551-4c45-8030-b4274929553a")
 		)
 		(instances
 			(project "controller"
