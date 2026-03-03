@@ -16,6 +16,7 @@ use picoserve::{
 struct RunConfig {
     temperature: i32,
     time: i32,
+    enabled_tc_zones: i32, // bitfield, bits correspond to zones
 }
 
 #[derive(serde::Serialize)]
@@ -95,17 +96,20 @@ impl picoserve::extract::FromRef<AppState> for AppStateValue {
     }
 }
 
-async fn get_state(State(value): State<AppStateValue>) -> impl IntoResponse {
+async fn get_state(State(value): State<AppStateValue>) -> impl IntoResponse { // TODO: only include the "outputs" in the response, not the "inputs"
     picoserve::response::Json(value)
 }
 
 async fn set_config(
-    Form(RunConfig { temperature, time }): Form<RunConfig>,
+    Form(RunConfig { temperature, time, enabled_tc_zones }): Form<RunConfig>,
 ) -> impl IntoResponseWithState<AppState> {
     picoserve::response::Json(0).with_state_update(async move |state: &AppState| {
-        // TODO: better response than Json(0)
+        // TODO: better response than Json(0) - validate?
         state.setpoint_temp.store(temperature, Relaxed); // TODO: validate?
         state.run_time_total.store(time, Relaxed);
+        state.temp_zones[0].enabled.store((enabled_tc_zones & 0x1) != 0, Relaxed);
+        state.temp_zones[1].enabled.store((enabled_tc_zones & 0x2) != 0, Relaxed);
+        state.temp_zones[2].enabled.store((enabled_tc_zones & 0x4) != 0, Relaxed);
         state.run_started.store(true, Relaxed);
     })
 }
@@ -158,13 +162,23 @@ pub fn set_elapsed_time(value: i32) {
 }
 
 pub fn get_run_started() -> bool {
-    WEB_STATE.run_started.load(Relaxed)
+    let started = WEB_STATE.run_started.load(Relaxed);
+    // To avoid inadvertently starting a new run when we get back to the config state, reset the flag
+    if started {
+        WEB_STATE.run_started.store(false, Relaxed);
+    }
+    started
 }
 
 pub fn get_run_config() -> crate::state::RunConfig {
     crate::state::RunConfig::new(
         WEB_STATE.setpoint_temp.load(Relaxed),
         WEB_STATE.run_time_total.load(Relaxed),
+        [
+            WEB_STATE.temp_zones[0].enabled.load(Relaxed),
+            WEB_STATE.temp_zones[1].enabled.load(Relaxed),
+            WEB_STATE.temp_zones[2].enabled.load(Relaxed),
+        ],
     )
 }
 

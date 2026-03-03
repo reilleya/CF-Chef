@@ -17,11 +17,17 @@ document.addEventListener("DOMContentLoaded", function() {
             console.log(this)
         }
     }
-    let request = "";
-    for (const p of formData) {
-      request += `${p[0]}=${p[1]}&`
-    }
-    request = request.slice(0, -1);
+
+    let enabled_tc_zones = formData.get("use_t0") ? 0x1 : 0x0;
+    enabled_tc_zones |= formData.get("use_t1") ? 0x2 : 0x0;
+    enabled_tc_zones |= formData.get("use_t2") ? 0x4 : 0x0;
+
+    let request =
+      "temperature=" + formData.get("temperature") + "&" +
+      "time=" + formData.get("time") + "&" +
+      "enabled_tc_zones=" + enabled_tc_zones;
+
+    console.log(request);
 
     xhr.send(request);
   });

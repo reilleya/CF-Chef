@@ -1,13 +1,29 @@
 pub struct RunConfig {
     pub temperature: i32,
     pub duration: esp_hal::time::Duration,
+    pub enabled_tc_zones: [bool; 3],
 }
 
 impl RunConfig {
-    pub fn new(temperature: i32, time_seconds: i32) -> Self {
+    pub fn new(temperature: i32, time_seconds: i32, enabled_tc_zones: [bool; 3]) -> Self {
         Self {
             temperature,
             duration: esp_hal::time::Duration::from_secs(time_seconds as u64),
+            enabled_tc_zones,
+        }
+    }
+}
+
+pub enum RunFailureReason {
+    ThermocoupleFault { zone: usize },
+    FanFault { number: usize }
+}
+
+impl core::fmt::Debug for RunFailureReason {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            RunFailureReason::ThermocoupleFault { zone } => write!(f, "Thermocouple fault in zone {}", zone),
+            RunFailureReason::FanFault { number } => write!(f, "Fan {} had a fault", number),
         }
     }
 }
@@ -20,66 +36,6 @@ pub enum State {
     },
     Complete,
     Error {
-        message: &'static str,
+        reason: RunFailureReason, // TODO: should there be a way to have multiple failures so they know what hardware to fix?
     }
 }
-
-
-/*pub struct StateMachineInput {
-    state: State,
-    run_started: bool,
-
-}
-
-pub struct StateMachineOutput {
-    state: State,
-    heater_enabled: bool,
-
-}
-static mut state: State = State::Config;
-
-pub fn next_state(input: StateMachineInput) -> StateMachineOutput {
-    match input.state {
-        State::Config => {
-            if input.run_started {
-                return StateMachineOutput {
-                    state: State::Running {
-                        start_time: 0,
-                        duration_secs: 0,
-                    },
-                    heater_enabled: false,
-                }
-            }
-            // if web state says run started
-                // Set up run using parameters from web state
-                // State::Running
-            // else
-                // State::Config
-            StateMachineOutput {
-                state: State::Config,
-                heater_enabled: false,
-            }
-        }
-        State::Running { start_time, duration_secs } => {
-            // Check for faults
-                // State::Error
-            // Update run from 
-            StateMachineOutput {
-                state: State::Complete,
-                heater_enabled: false,
-            }
-        }
-        State::Complete => {
-            StateMachineOutput {
-                state: State::Complete,
-                heater_enabled: false,
-            }
-        }
-        State::Error => {
-            StateMachineOutput {
-                state: State::Error,
-                heater_enabled: false,
-            }
-        }
-    }
-}*/

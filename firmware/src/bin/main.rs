@@ -150,9 +150,9 @@ async fn main(spawner: Spawner) -> ! {
 
     leds.set_pixel(0, lib::led::color::OFF);
 
-    loop {
+    'main: loop {
         let mut temperatures = [0.0; 3];
-        let enabled_zones = [true, false, false]; // TODO: add zone enable/disable to configuration form
+        let mut faults = [false; 3];
         for zone in 0..3 {
             spi_cs_pins[zone].set_low();
             let mut buffer = [0; 4];
@@ -160,25 +160,16 @@ async fn main(spawner: Spawner) -> ! {
             spi_cs_pins[zone].set_high();
 
             let reading = lib::max31855::interpret_max31855_read(buffer);
-            lib::max31855::log_max31855_reading(&reading);
+            //lib::max31855::log_max31855_reading(&reading);
             if let lib::max31855::MAX31855Reading::Valid { temp, .. } = reading {
                 lib::web::set_zone_temperature(zone, temp as i32);
                 temperatures[zone] = temp;
             }
-            // TODO: complain if there is a fault reading and this zone is enabled
+            else {
+                lib::web::set_zone_fault(zone, true);
+                faults[zone] = true;
+            }
         }
-
-        let average_temp: f32 = enabled_zones
-            .iter()
-            .enumerate()
-            .filter_map(|(i, &enabled)| if enabled { Some(temperatures[i]) } else { None })
-            .sum::<f32>()
-            / enabled_zones.iter().filter(|&&enabled| enabled).count() as f32;
-
-        lib::web::set_current_temperature(average_temp as i32);
-        println!("Average temperature: {average_temp:.2} °C");
-        println!("");
-
 
         match state {
             lib::state::State::Config => {
@@ -190,24 +181,51 @@ async fn main(spawner: Spawner) -> ! {
                 }
             }
             lib::state::State::Running { ref config, run_start_time } => { // TODO: why can't I just get the config?
-                let elapsed = esp_hal::time::Instant::now() - run_start_time;
-                if elapsed >= config.duration {
-                    heater_output.set_low();
-                    leds.set_pixel(0, lib::led::color::PURPLE);
-                    state = lib::state::State::Complete;
-                } else {
-                    lib::web::set_elapsed_time(elapsed.as_secs() as i32);
-                    leds.set_pixel(0, lib::led::color::GREEN);
-                    if average_temp < config.temperature as f32 {
-                        heater_output.set_high();
-                    } else {
-                        heater_output.set_low();
+                leds.set_pixel(0, lib::led::color::GREEN); // TODO: use a lookup table to set color based on state
+
+                // Check for TC faults
+                for zone in 0..3 {
+                    if config.enabled_tc_zones[zone] && faults[zone] {
+                        state = lib::state::State::Error {
+                            reason: lib::state::RunFailureReason::ThermocoupleFault { zone },
+                        };
+                        continue 'main;
                     }
                 }
+
+                // Check if run is complete
+                let elapsed = esp_hal::time::Instant::now() - run_start_time;
+                lib::web::set_elapsed_time(elapsed.as_secs() as i32);
+                if elapsed >= config.duration {
+                    state = lib::state::State::Complete;
+                    continue 'main;
+                }
+
+                // All expected TCs have good readings, calculate average temperature
+                let average_temp: f32 = config.enabled_tc_zones
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(i, &enabled)| if enabled { Some(temperatures[i]) } else { None })
+                    .sum::<f32>()
+                    / config.enabled_tc_zones.iter().filter(|&&enabled| enabled).count() as f32;
+
+                lib::web::set_current_temperature(average_temp as i32);
+
+                // Bang-bang control
+                if average_temp < config.temperature as f32 {
+                    heater_output.set_high();
+                } else {
+                    heater_output.set_low();
+                }
              }
-             lib::state::State::Complete => {}
-             lib::state::State::Error { message } => {
-                 println!("Error state: {message}");
+             lib::state::State::Complete => {
+                heater_output.set_low();
+                leds.set_pixel(0, lib::led::color::PURPLE);
+             }
+             lib::state::State::Error { ref reason } => {
+                heater_output.set_low();
+                leds.set_pixel(0, lib::led::color::RED);
+                println!("Run failed: {reason:?}");
              }
         }
 
