@@ -41,9 +41,10 @@ document.addEventListener("DOMContentLoaded", function() {
           return response.json();
         })
         .then(data => {
+          console.log(data);
           readout.textContent = `${data.current_temp}/${data.setpoint_temp} °C for ${data.run_time_elapsed}/${data.run_time_total} seconds`
           for (let i = 0; i < 3; i++) {
-            zone_temps[i].innerHTML = `${data.zone_temps[i]} °C`
+            zone_temps[i].innerHTML = `${data.temp_zones[i].last_temp} °C`
           }
         })
         .catch(error => {

@@ -146,11 +146,7 @@ async fn main(spawner: Spawner) -> ! {
         ));
     }
 
-    let mut started = false;
-    let mut ended = false;
-    let mut setpoint_temp = 0;
-    let mut run_start_time = esp_hal::time::Instant::now();
-    let mut run_duration = esp_hal::time::Duration::from_secs(0);
+    let mut state = lib::state::State::Config;
 
     leds.set_pixel(0, lib::led::color::OFF);
 
@@ -183,31 +179,36 @@ async fn main(spawner: Spawner) -> ! {
         println!("Average temperature: {average_temp:.2} °C");
         println!("");
 
-        if !started {
-            if lib::web::get_run_started() {
-                run_start_time = esp_hal::time::Instant::now();
-                started = true;
-                setpoint_temp = lib::web::get_setpoint_temperature();
-                run_duration =
-                    esp_hal::time::Duration::from_secs(lib::web::get_run_total_time() as u64);
-            }
-        } else {
-            let elapsed = esp_hal::time::Instant::now() - run_start_time;
-            if elapsed >= run_duration {
-                ended = true;
-            }
-            if ended {
-                heater_output.set_low();
-                leds.set_pixel(0, lib::led::color::PURPLE);
-            } else {
-                lib::web::set_elapsed_time(elapsed.as_secs() as i32);
-                leds.set_pixel(0, lib::led::color::GREEN);
-                if average_temp < setpoint_temp as f32 {
-                    heater_output.set_high();
-                } else {
-                    heater_output.set_low();
+
+        match state {
+            lib::state::State::Config => {
+                if lib::web::get_run_started() {
+                    state = lib::state::State::Running {
+                        config: lib::web::get_run_config(),
+                        run_start_time: esp_hal::time::Instant::now(),
+                    }
                 }
             }
+            lib::state::State::Running { ref config, run_start_time } => { // TODO: why can't I just get the config?
+                let elapsed = esp_hal::time::Instant::now() - run_start_time;
+                if elapsed >= config.duration {
+                    heater_output.set_low();
+                    leds.set_pixel(0, lib::led::color::PURPLE);
+                    state = lib::state::State::Complete;
+                } else {
+                    lib::web::set_elapsed_time(elapsed.as_secs() as i32);
+                    leds.set_pixel(0, lib::led::color::GREEN);
+                    if average_temp < config.temperature as f32 {
+                        heater_output.set_high();
+                    } else {
+                        heater_output.set_low();
+                    }
+                }
+             }
+             lib::state::State::Complete => {}
+             lib::state::State::Error { message } => {
+                 println!("Error state: {message}");
+             }
         }
 
         Timer::after(Duration::from_millis(100)).await;

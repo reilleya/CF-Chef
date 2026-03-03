@@ -13,28 +13,47 @@ use picoserve::{
 };
 
 #[derive(serde::Deserialize)]
-struct FormValue {
+struct RunConfig {
     temperature: i32,
     time: i32,
 }
 
-pub struct AppState {
-    zone_temps: [AtomicI32; 3],
-    current_temp: AtomicI32,
-    setpoint_temp: AtomicI32,
-    run_time_elapsed: AtomicI32,
-    run_time_total: AtomicI32,
-    run_started: AtomicBool,
+#[derive(serde::Serialize)]
+pub struct ThermocoupleZoneValue {
+    enabled: bool,
+    last_temp: i32,
+    fault: bool,
 }
 
 #[derive(serde::Serialize)]
 struct AppStateValue {
-    zone_temps: [i32; 3],
-    current_temp: i32,
-    setpoint_temp: i32,
-    run_time_elapsed: i32,
-    run_time_total: i32,
+    // Inputs, set by the web interface
     run_started: bool,
+    setpoint_temp: i32,
+    run_time_total: i32,
+
+    // Outputs, set by the control loop
+    temp_zones: [ThermocoupleZoneValue; 3],
+    current_temp: i32,
+    run_time_elapsed: i32,
+}
+
+pub struct ThermocoupleZone {
+    enabled: AtomicBool,
+    last_temp: AtomicI32,
+    fault: AtomicBool,
+}
+
+pub struct AppState {
+    // Inputs, set by the web interface
+    run_started: AtomicBool,
+    setpoint_temp: AtomicI32,
+    run_time_total: AtomicI32,
+
+    // Outputs, set by the control loop
+    temp_zones: [ThermocoupleZone; 3],
+    current_temp: AtomicI32,
+    run_time_elapsed: AtomicI32,
 }
 
 impl picoserve::extract::FromRef<AppState> for AppStateValue {
@@ -45,15 +64,27 @@ impl picoserve::extract::FromRef<AppState> for AppStateValue {
             run_time_elapsed,
             run_time_total,
             run_started,
-            zone_temps,
+            temp_zones,
             ..
         }: &AppState,
     ) -> Self {
         Self {
-            zone_temps: [
-                zone_temps[0].load(Relaxed),
-                zone_temps[1].load(Relaxed),
-                zone_temps[2].load(Relaxed),
+            temp_zones: [
+                ThermocoupleZoneValue {
+                    enabled: temp_zones[0].enabled.load(Relaxed),
+                    last_temp: temp_zones[0].last_temp.load(Relaxed),
+                    fault: temp_zones[0].fault.load(Relaxed),
+                },
+                ThermocoupleZoneValue {
+                    enabled: temp_zones[1].enabled.load(Relaxed),
+                    last_temp: temp_zones[1].last_temp.load(Relaxed),
+                    fault: temp_zones[1].fault.load(Relaxed),
+                },
+                ThermocoupleZoneValue {
+                    enabled: temp_zones[2].enabled.load(Relaxed),
+                    last_temp: temp_zones[2].last_temp.load(Relaxed),
+                    fault: temp_zones[2].fault.load(Relaxed),
+                },
             ],
             current_temp: current_temp.load(Relaxed),
             setpoint_temp: setpoint_temp.load(Relaxed),
@@ -69,7 +100,7 @@ async fn get_state(State(value): State<AppStateValue>) -> impl IntoResponse {
 }
 
 async fn set_config(
-    Form(FormValue { temperature, time }): Form<FormValue>,
+    Form(RunConfig { temperature, time }): Form<RunConfig>,
 ) -> impl IntoResponseWithState<AppState> {
     picoserve::response::Json(0).with_state_update(async move |state: &AppState| {
         // TODO: better response than Json(0)
@@ -81,8 +112,24 @@ async fn set_config(
 
 pub struct Application;
 
-pub static STATE: AppState = AppState {
-    zone_temps: [AtomicI32::new(0), AtomicI32::new(0), AtomicI32::new(0)],
+pub static WEB_STATE: AppState = AppState {
+    temp_zones: [
+        ThermocoupleZone {
+            enabled: AtomicBool::new(false),
+            last_temp: AtomicI32::new(0),
+            fault: AtomicBool::new(false),
+        },
+        ThermocoupleZone {
+            enabled: AtomicBool::new(false),
+            last_temp: AtomicI32::new(0),
+            fault: AtomicBool::new(false),
+        },
+        ThermocoupleZone {
+            enabled: AtomicBool::new(false),
+            last_temp: AtomicI32::new(0),
+            fault: AtomicBool::new(false),
+        },
+    ],
     current_temp: AtomicI32::new(0),
     setpoint_temp: AtomicI32::new(0),
     run_time_elapsed: AtomicI32::new(0),
@@ -91,27 +138,34 @@ pub static STATE: AppState = AppState {
 };
 
 pub fn set_zone_temperature(zone: usize, value: i32) {
-    STATE.zone_temps[zone].store(value, Relaxed);
+    WEB_STATE.temp_zones[zone].last_temp.store(value, Relaxed);
+}
+
+pub fn set_zone_enabled(zone: usize, enabled: bool) {
+    WEB_STATE.temp_zones[zone].enabled.store(enabled, Relaxed);
+}
+
+pub fn set_zone_fault(zone: usize, fault: bool) {
+    WEB_STATE.temp_zones[zone].fault.store(fault, Relaxed);
 }
 
 pub fn set_current_temperature(value: i32) {
-    STATE.current_temp.store(value, Relaxed);
+    WEB_STATE.current_temp.store(value, Relaxed);
 }
 
 pub fn set_elapsed_time(value: i32) {
-    STATE.run_time_elapsed.store(value, Relaxed);
+    WEB_STATE.run_time_elapsed.store(value, Relaxed);
 }
 
 pub fn get_run_started() -> bool {
-    STATE.run_started.load(Relaxed)
+    WEB_STATE.run_started.load(Relaxed)
 }
 
-pub fn get_run_total_time() -> i32 {
-    STATE.run_time_total.load(Relaxed)
-}
-
-pub fn get_setpoint_temperature() -> i32 {
-    STATE.setpoint_temp.load(Relaxed)
+pub fn get_run_config() -> crate::state::RunConfig {
+    crate::state::RunConfig::new(
+        WEB_STATE.setpoint_temp.load(Relaxed),
+        WEB_STATE.run_time_total.load(Relaxed),
+    )
 }
 
 impl AppBuilder for Application {
@@ -133,7 +187,7 @@ impl AppBuilder for Application {
             )
             .route("/get_state", get(get_state))
             .route("/set_config", post(set_config))
-            .with_state(&STATE)
+            .with_state(&WEB_STATE)
     }
 }
 
