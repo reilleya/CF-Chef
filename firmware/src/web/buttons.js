@@ -12,7 +12,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
     xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
 
-    xhr.onreadystatechange = function() { // Call a function when the state changes.
+    xhr.onreadystatechange = function() {
         if (this.readyState === XMLHttpRequest.DONE && this.status === 200) {
             console.log(this)
         }

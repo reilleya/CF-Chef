@@ -1,6 +1,7 @@
 #![no_std]
 #![no_main]
 
+use esp_hal::time::Instant;
 use firmware as lib;
 
 use core::{net::Ipv4Addr, str::FromStr};
@@ -9,7 +10,7 @@ use embassy_executor::Spawner;
 use embassy_net::{Ipv4Cidr, StackResources, StaticConfigV4};
 use embassy_time::{Duration, Timer};
 use esp_alloc as _;
-use esp_hal::gpio::{Level, Output, OutputConfig};
+use esp_hal::gpio::{Event, Level, Output, OutputConfig, Input, InputConfig, Io, Pull};
 #[cfg(target_arch = "riscv32")]
 use esp_hal::interrupt::software::SoftwareInterruptControl;
 use esp_hal::spi::Mode as SpiMode;
@@ -17,6 +18,9 @@ use esp_hal::spi::master::Config as SpiConfig;
 use esp_hal::spi::master::Spi;
 use esp_hal::time::Rate;
 use esp_hal::{clock::CpuClock, ram, rng::Rng, timer::timg::TimerGroup};
+use esp_hal::interrupt::Priority;
+use esp_hal::peripherals::Interrupt;
+use esp_hal::handler;
 use esp_println::println;
 use esp_radio::Controller;
 
@@ -40,6 +44,52 @@ fn panic(panic_info: &core::panic::PanicInfo) -> ! {
     loop {}
 }
 
+use core::cell::RefCell;
+use critical_section::Mutex;
+static FAN0_TACH: Mutex<RefCell<Option<Input>>> =
+    Mutex::new(RefCell::new(None));
+
+static FAN1_TACH: Mutex<RefCell<Option<Input>>> =
+    Mutex::new(RefCell::new(None));
+
+static FAN0_LAST_PULSE: Mutex<RefCell<Option<Instant>>> =
+    Mutex::new(RefCell::new(None));
+
+static FAN1_LAST_PULSE: Mutex<RefCell<Option<Instant>>> =
+    Mutex::new(RefCell::new(None));
+
+#[handler]
+fn handler() {
+    critical_section::with(|cs| {
+        let mut fan0_tach = FAN0_TACH.borrow_ref_mut(cs);
+        let mut fan1_tach = FAN1_TACH.borrow_ref_mut(cs);
+        let mut fan0_last_pulse = FAN0_LAST_PULSE.borrow_ref_mut(cs);
+        let mut fan1_last_pulse = FAN1_LAST_PULSE.borrow_ref_mut(cs);
+        match (fan0_tach.as_mut(), fan0_last_pulse.as_mut()) {
+            (Some(fan0_tach), Some(fan0_last_pulse)) => {
+                if fan0_tach.is_interrupt_set() {
+                    println!("Got a pulse on 0, {} ms since last!", fan0_last_pulse.elapsed().as_millis());
+
+                    *fan0_last_pulse = Instant::now();
+                    fan0_tach.clear_interrupt();
+                }
+            }
+            _ => { }
+        }
+        match (fan1_tach.as_mut(), fan1_last_pulse.as_mut()) {
+            (Some(fan1_tach), Some(fan1_last_pulse)) => {
+                if fan1_tach.is_interrupt_set() {
+                    println!("Got a pulse on 1, {} ms since last!", fan1_last_pulse.elapsed().as_millis());
+
+                    *fan1_last_pulse = Instant::now();
+                    fan1_tach.clear_interrupt();
+                }
+            }
+            _ => { }
+        }
+    });
+}
+
 const TASK_POOL_SIZE: usize = lib::web::WEB_TASK_POOL_SIZE + lib::wifi::WIFI_TASK_POOL_SIZE;
 
 #[esp_rtos::main]
@@ -50,6 +100,26 @@ async fn main(spawner: Spawner) -> ! {
 
     esp_alloc::heap_allocator!(#[ram(reclaimed)] size: 64 * 1024);
     esp_alloc::heap_allocator!(size: 36 * 1024);
+
+    // Set up fan tach interrupts
+    esp_hal::interrupt::enable(Interrupt::GPIO, Priority::Priority3).unwrap();
+
+    let mut fan0_tach = Input::new(peripherals.GPIO20, InputConfig::default().with_pull(Pull::Up));
+    let mut fan1_tach = Input::new(peripherals.GPIO21, InputConfig::default().with_pull(Pull::Up));
+
+    critical_section::with(|cs| {
+        fan0_tach.listen(Event::RisingEdge);
+        fan1_tach.listen(Event::RisingEdge);
+        FAN0_TACH.borrow_ref_mut(cs).replace(fan0_tach);
+        FAN1_TACH.borrow_ref_mut(cs).replace(fan1_tach);
+        FAN0_LAST_PULSE.borrow_ref_mut(cs).replace(Instant::now());
+        FAN1_LAST_PULSE.borrow_ref_mut(cs).replace(Instant::now());
+    });
+
+    unsafe {
+        esp_hal::interrupt::bind_interrupt(Interrupt::GPIO, handler.handler());
+    }
+
 
     // Set up LED
     let rmt = esp_hal::rmt::Rmt::new(peripherals.RMT, Rate::from_mhz(80)).unwrap();
