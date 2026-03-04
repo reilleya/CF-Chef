@@ -12,7 +12,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
     xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
 
-    xhr.onreadystatechange = function() { // Call a function when the state changes.
+    xhr.onreadystatechange = function() {
         if (this.readyState === XMLHttpRequest.DONE && this.status === 200) {
             console.log(this)
         }
@@ -38,6 +38,10 @@ document.addEventListener("DOMContentLoaded", function() {
     document.getElementById("zone2Temp"),
     document.getElementById("zone3Temp"),
   ];
+  const fan_speeds = [
+    document.getElementById("fan1Speed"),
+    document.getElementById("fan2Speed"),
+  ];
   let readoutInterval = setInterval(function() {
       fetch('/get_state')
         .then(response => {
@@ -47,10 +51,13 @@ document.addEventListener("DOMContentLoaded", function() {
           return response.json();
         })
         .then(data => {
-          console.log(data);
+          // console.log(data);
           readout.textContent = `${data.current_temp}/${data.setpoint_temp} °C for ${data.run_time_elapsed}/${data.run_time_total} seconds`
           for (let i = 0; i < 3; i++) {
             zone_temps[i].innerHTML = `${data.temp_zones[i].last_temp} °C`
+          }
+          for (let i = 0; i < 2; i++) {
+            fan_speeds[i].innerHTML = `${data.fans[i].last_speed} RPM`
           }
         })
         .catch(error => {

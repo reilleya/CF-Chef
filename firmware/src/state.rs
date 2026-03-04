@@ -16,13 +16,15 @@ impl RunConfig {
 
 pub enum RunFailureReason {
     ThermocoupleFault { zone: usize },
-    FanFault { number: usize }
+    FanFault { number: usize },
 }
 
 impl core::fmt::Debug for RunFailureReason {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            RunFailureReason::ThermocoupleFault { zone } => write!(f, "Thermocouple fault in zone {}", zone),
+            RunFailureReason::ThermocoupleFault { zone } => {
+                write!(f, "Thermocouple fault in zone {}", zone)
+            }
             RunFailureReason::FanFault { number } => write!(f, "Fan {} had a fault", number),
         }
     }
@@ -37,5 +39,5 @@ pub enum State {
     Complete,
     Error {
         reason: RunFailureReason, // TODO: should there be a way to have multiple failures so they know what hardware to fix?
-    }
+    },
 }
