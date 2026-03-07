@@ -2434,6 +2434,19 @@
 				)
 			)
 		)
+		(property "FT Rotation Offset" "90"
+			(at 0 0 270)
+			(unlocked yes)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "7a00f03a-0b5b-4554-9917-f0155c305b89")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
 		(property ki_fp_filters "TSOT?23*")
 		(path "/dc443349-7fb4-42c6-a18e-09a219bb9ecd/31173c2a-12fe-4977-9ee2-d592f58b9e4b")
 		(sheetname "/Power/")
@@ -8289,6 +8302,7 @@
 		(property "Reference" "C9"
 			(at 0 -1.68 0)
 			(layer "F.SilkS")
+			(hide yes)
 			(uuid "cc6a4671-63ae-403c-af18-4a82b5a9a4f2")
 			(effects
 				(font
@@ -16358,14 +16372,6 @@
 		(uuid "16a6008b-bc52-413c-b53b-d3226841f46c")
 	)
 	(via
-		(at 128.778 72.644)
-		(size 0.5)
-		(drill 0.2)
-		(layers "F.Cu" "B.Cu")
-		(net 18)
-		(uuid "18de5dd5-07a9-40c3-aebb-74afaeac3e45")
-	)
-	(via
 		(at 120.4575 94.488)
 		(size 0.5)
 		(drill 0.2)
@@ -18426,14 +18432,6 @@
 		(layer "B.Cu")
 		(net 45)
 		(uuid "55efaafd-c822-4715-ae9e-b0a87c620ffe")
-	)
-	(segment
-		(start 122.174 93.98)
-		(end 122.936 93.218)
-		(width 0.25)
-		(layer "B.Cu")
-		(net 45)
-		(uuid "9a34a7f5-2a50-49ce-8a91-1f8a65ac3456")
 	)
 	(segment
 		(start 121.09 95.064)
