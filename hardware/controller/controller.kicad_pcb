@@ -3451,6 +3451,19 @@
 				)
 			)
 		)
+		(property "FT Rotation Offset" "270"
+			(at 0 0 270)
+			(unlocked yes)
+			(layer "F.Fab")
+			(hide yes)
+			(uuid "76d6f91c-45be-482f-a721-c14e13a03ceb")
+			(effects
+				(font
+					(size 1 1)
+					(thickness 0.15)
+				)
+			)
+		)
 		(path "/dc443349-7fb4-42c6-a18e-09a219bb9ecd/ec58d896-2ed6-47ab-afe2-f9c5fb1135a0")
 		(sheetname "/Power/")
 		(sheetfile "power.kicad_sch")
