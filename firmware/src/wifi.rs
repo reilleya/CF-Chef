@@ -12,7 +12,7 @@ use esp_radio::wifi::{
 
 pub const WIFI_TASK_POOL_SIZE: usize = 3;
 
-pub const SSID: &'static str = "oven";
+pub const SSID: &'static str = "CF-Chef";
 pub const PASSWORD: &'static str = "time2cook";
 pub const GW_IP_ADDR: &'static str = "192.168.2.1";
 
