@@ -941,6 +941,183 @@
 			)
 			(embedded_fonts no)
 		)
+		(symbol "D_1"
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 1.016)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(property "Reference" "D3"
+				(at 0 -6.35 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "D"
+				(at 0 -3.81 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" "Package_TO_SOT_SMD:TSOT-23"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Datasheet" "~"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Description" "Diode"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Sim.Device" "D"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Sim.Pins" "1=K 2=A"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "LCSC" "C14308"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "ki_keywords" "diode"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "ki_fp_filters" "TO-???* *_Diode_* *SingleDiode* D_*"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(symbol "D_1_0_1"
+				(polyline
+					(pts
+						(xy -1.27 1.27) (xy -1.27 -1.27)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 1.27 1.27) (xy 1.27 -1.27) (xy -1.27 0) (xy 1.27 1.27)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 1.27 0) (xy -1.27 0)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "D_1_1_1"
+				(pin passive line
+					(at -3.81 0 0)
+					(length 2.54)
+					(name "K"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "3"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 3.81 0 180)
+					(length 2.54)
+					(name "A"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
 		(symbol "Device:C"
 			(pin_numbers
 				(hide yes)
@@ -1091,8 +1268,8 @@
 			(exclude_from_sim no)
 			(in_bom yes)
 			(on_board yes)
-			(property "Reference" "D"
-				(at 0 2.54 0)
+			(property "Reference" "D4"
+				(at 0 5.588 0)
 				(effects
 					(font
 						(size 1.27 1.27)
@@ -1100,14 +1277,14 @@
 				)
 			)
 			(property "Value" "D"
-				(at 0 -2.54 0)
+				(at 0.254 3.048 0)
 				(effects
 					(font
 						(size 1.27 1.27)
 					)
 				)
 			)
-			(property "Footprint" ""
+			(property "Footprint" "Package_TO_SOT_SMD:TSOT-23"
 				(at 0 0 0)
 				(effects
 					(font
@@ -1144,6 +1321,15 @@
 				)
 			)
 			(property "Sim.Pins" "1=K 2=A"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "LCSC" "C14308"
 				(at 0 0 0)
 				(effects
 					(font
@@ -1219,7 +1405,7 @@
 							)
 						)
 					)
-					(number "1"
+					(number "3"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -1237,7 +1423,7 @@
 							)
 						)
 					)
-					(number "2"
+					(number "1"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -3956,12 +4142,6 @@
 		(uuid "310db653-630e-4dc1-a94b-36362d17ff93")
 	)
 	(junction
-		(at 212.09 77.47)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "6cdb53bc-ea7f-4fc7-b193-9e5b07dfaba5")
-	)
-	(junction
 		(at 146.05 48.26)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -3984,6 +4164,12 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "80bd96b4-7802-454c-b2f5-82929fc48588")
+	)
+	(junction
+		(at 212.09 77.47)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "86939b8d-6baf-4845-bfac-9492baddd724")
 	)
 	(junction
 		(at 58.42 104.14)
@@ -4179,16 +4365,6 @@
 	)
 	(wire
 		(pts
-			(xy 212.09 77.47) (xy 224.79 77.47)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "468ee01d-3a77-4271-90cb-66afd80a67df")
-	)
-	(wire
-		(pts
 			(xy 219.71 41.91) (xy 236.22 41.91)
 		)
 		(stroke
@@ -4276,6 +4452,16 @@
 			(type default)
 		)
 		(uuid "6c11f45b-5356-4d79-9c7b-ad9c25e3c7bc")
+	)
+	(wire
+		(pts
+			(xy 212.09 77.47) (xy 224.79 77.47)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "71e4a9ec-556f-4c92-91b4-9c114c35c27b")
 	)
 	(wire
 		(pts
@@ -6840,7 +7026,7 @@
 	)
 	(symbol
 		(lib_id "Device:D_TVS")
-		(at 220.98 88.9 90)
+		(at 220.98 88.9 270)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -6854,7 +7040,7 @@
 				(font
 					(size 1.27 1.27)
 				)
-				(justify right)
+				(justify left)
 			)
 		)
 		(property "Value" "D_TVS"
@@ -6863,7 +7049,7 @@
 				(font
 					(size 1.27 1.27)
 				)
-				(justify right)
+				(justify left)
 			)
 		)
 		(property "Footprint" "Diode_SMD:D_SOD-323F"
@@ -7482,7 +7668,7 @@
 		(pin "1"
 			(uuid "9e537ea2-831b-48a0-b0b2-072d419bf8eb")
 		)
-		(pin "2"
+		(pin "3"
 			(uuid "71cecdcd-5545-4128-8bfe-33aa14e3b753")
 		)
 		(instances
@@ -8162,6 +8348,7 @@
 		)
 	)
 	(symbol
+		(lib_name "D_1")
 		(lib_id "Device:D")
 		(at 205.74 74.93 180)
 		(unit 1)
@@ -8241,7 +8428,7 @@
 				(hide yes)
 			)
 		)
-		(pin "2"
+		(pin "3"
 			(uuid "096f86c2-4ad7-4ca3-8d91-5a0f3fdfd2e7")
 		)
 		(pin "1"
@@ -8620,7 +8807,7 @@
 	)
 	(symbol
 		(lib_id "Device:D_TVS")
-		(at 212.09 81.28 90)
+		(at 212.09 81.28 270)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -8634,7 +8821,7 @@
 				(font
 					(size 1.27 1.27)
 				)
-				(justify right)
+				(justify left)
 			)
 		)
 		(property "Value" "D_TVS"
@@ -8643,7 +8830,7 @@
 				(font
 					(size 1.27 1.27)
 				)
-				(justify right)
+				(justify left)
 			)
 		)
 		(property "Footprint" "Diode_SMD:D_SOD-323F"
