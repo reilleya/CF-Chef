@@ -35,6 +35,7 @@ struct AppStateValue {
 
     // Outputs, set by the control loop
     temp_zones: [ThermocoupleZoneValue; 3],
+    fan_tach_periods: [i32; 2],
     current_temp: i32,
     run_time_elapsed: i32,
 }
@@ -53,6 +54,7 @@ pub struct AppState {
 
     // Outputs, set by the control loop
     temp_zones: [ThermocoupleZone; 3],
+    fan_tach_periods: [AtomicI32; 2],
     current_temp: AtomicI32,
     run_time_elapsed: AtomicI32,
 }
@@ -66,6 +68,7 @@ impl picoserve::extract::FromRef<AppState> for AppStateValue {
             run_time_total,
             run_started,
             temp_zones,
+            fan_tach_periods,
             ..
         }: &AppState,
     ) -> Self {
@@ -86,6 +89,10 @@ impl picoserve::extract::FromRef<AppState> for AppStateValue {
                     last_temp: temp_zones[2].last_temp.load(Relaxed),
                     fault: temp_zones[2].fault.load(Relaxed),
                 },
+            ],
+            fan_tach_periods: [
+                fan_tach_periods[0].load(Relaxed),
+                fan_tach_periods[1].load(Relaxed),
             ],
             current_temp: current_temp.load(Relaxed),
             setpoint_temp: setpoint_temp.load(Relaxed),
@@ -134,12 +141,17 @@ pub static WEB_STATE: AppState = AppState {
             fault: AtomicBool::new(false),
         },
     ],
+    fan_tach_periods: [AtomicI32::new(0), AtomicI32::new(0)],
     current_temp: AtomicI32::new(0),
     setpoint_temp: AtomicI32::new(0),
     run_time_elapsed: AtomicI32::new(0),
     run_time_total: AtomicI32::new(0),
     run_started: AtomicBool::new(false),
 };
+
+pub fn set_last_tach_pulse_time(fan: usize, time: i32) {
+    WEB_STATE.fan_tach_periods[fan].store(time, Relaxed);
+}
 
 pub fn set_zone_temperature(zone: usize, value: i32) {
     WEB_STATE.temp_zones[zone].last_temp.store(value, Relaxed);

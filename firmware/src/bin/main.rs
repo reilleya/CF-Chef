@@ -243,6 +243,11 @@ async fn main(spawner: Spawner) -> ! {
             }
         }
 
+        critical_section::with(|cs| {
+            lib::web::set_last_tach_pulse_time(0, FAN0_LAST_PULSE.borrow_ref_mut(cs).unwrap().elapsed().as_millis() as i32);
+            lib::web::set_last_tach_pulse_time(1, FAN1_LAST_PULSE.borrow_ref_mut(cs).unwrap().elapsed().as_millis() as i32);
+        });
+
         match state {
             lib::state::State::Config => {
                 if lib::web::get_run_started() {
