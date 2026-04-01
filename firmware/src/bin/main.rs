@@ -54,11 +54,13 @@ async fn main(spawner: Spawner) -> ! {
     // Set up LED
     let rmt = esp_hal::rmt::Rmt::new(peripherals.RMT, Rate::from_mhz(80)).unwrap();
     let rmt_output = Output::new(peripherals.GPIO0, Level::Low, Default::default());
-    let mut leds = lib::led::Led {
+    let mut led = lib::led::Led {
         pixel_buffer: [lib::led::Rgb { r: 0, g: 0, b: 0 }; 1],
         rmt_channel: Some(lib::led::Led::configure_rmt(rmt, rmt_output)),
         last_update_time: esp_hal::time::Instant::EPOCH,
     };
+
+    led.set_pixel(0, lib::led::color::WHITE);
 
     // Set up heater output
     let mut heater_output = Output::new(peripherals.GPIO1, Level::Low, OutputConfig::default());
@@ -148,7 +150,7 @@ async fn main(spawner: Spawner) -> ! {
 
     let mut state = lib::state::State::Config;
 
-    leds.set_pixel(0, lib::led::color::OFF);
+    led.set_pixel(0, lib::led::color::OFF);
 
     'main: loop {
         let mut temperatures = [0.0; 3];
@@ -181,7 +183,7 @@ async fn main(spawner: Spawner) -> ! {
                 }
             }
             lib::state::State::Running { ref config, run_start_time } => { // TODO: why can't I just get the config?
-                leds.set_pixel(0, lib::led::color::GREEN); // TODO: use a lookup table to set color based on state
+                led.set_pixel(0, lib::led::color::GREEN); // TODO: use a lookup table to set color based on state
 
                 // Check for TC faults
                 for zone in 0..3 {
@@ -220,11 +222,11 @@ async fn main(spawner: Spawner) -> ! {
              }
              lib::state::State::Complete => {
                 heater_output.set_low();
-                leds.set_pixel(0, lib::led::color::PURPLE);
+                led.set_pixel(0, lib::led::color::PURPLE);
              }
              lib::state::State::Error { ref reason } => {
                 heater_output.set_low();
-                leds.set_pixel(0, lib::led::color::RED);
+                led.set_pixel(0, lib::led::color::RED);
                 println!("Run failed: {reason:?}");
              }
         }
