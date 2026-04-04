@@ -1,16 +1,18 @@
+use crate::constants::NUM_FANS;
+use crate::constants::NUM_THERMOCOUPLES;
 pub struct RunConfig {
     pub temperature: i32,
     pub duration: esp_hal::time::Duration,
-    pub enabled_tc_zones: [bool; 3],
-    pub fan_enabled: [bool; 2],
+    pub enabled_tc_zones: [bool; NUM_THERMOCOUPLES],
+    pub fan_enabled: [bool; NUM_FANS],
 }
 
 impl RunConfig {
     pub fn new(
         temperature: i32,
         time_seconds: i32,
-        enabled_tc_zones: [bool; 3],
-        fan_enabled: [bool; 2],
+        enabled_tc_zones: [bool; NUM_THERMOCOUPLES],
+        fan_enabled: [bool; NUM_FANS],
     ) -> Self {
         Self {
             temperature,

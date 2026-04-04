@@ -12,6 +12,9 @@ use picoserve::{
     routing::{get, post},
 };
 
+use crate::constants::NUM_FANS;
+use crate::constants::NUM_THERMOCOUPLES;
+
 #[derive(serde::Deserialize)]
 struct RunConfig {
     temperature: i32,
@@ -42,8 +45,8 @@ struct AppStateValue {
     run_time_total: i32,
 
     // Outputs, set by the control loop
-    temp_zones: [ThermocoupleZoneValue; 3],
-    fans: [FanValue; 2],
+    temp_zones: [ThermocoupleZoneValue; NUM_THERMOCOUPLES],
+    fans: [FanValue; NUM_FANS],
     current_temp: i32,
     run_time_elapsed: i32,
 }
@@ -67,8 +70,8 @@ pub struct AppState {
     run_time_total: AtomicI32,
 
     // Outputs, set by the control loop
-    temp_zones: [ThermocoupleZone; 3],
-    fans: [Fan; 2],
+    temp_zones: [ThermocoupleZone; NUM_THERMOCOUPLES],
+    fans: [Fan; NUM_FANS],
     current_temp: AtomicI32,
     run_time_elapsed: AtomicI32,
 }
@@ -142,21 +145,16 @@ async fn set_config(
         // TODO: better response than Json(0) - validate?
         state.setpoint_temp.store(temperature, Relaxed); // TODO: validate?
         state.run_time_total.store(time, Relaxed);
-        state.temp_zones[0]
-            .enabled
-            .store((enabled_tc_zones & 0x1) != 0, Relaxed);
-        state.temp_zones[1]
-            .enabled
-            .store((enabled_tc_zones & 0x2) != 0, Relaxed);
-        state.temp_zones[2]
-            .enabled
-            .store((enabled_tc_zones & 0x4) != 0, Relaxed);
-        state.fans[0]
-            .enabled
-            .store((enabled_fan_zones & 0x1) != 0, Relaxed);
-        state.fans[1]
-            .enabled
-            .store((enabled_fan_zones & 0x2) != 0, Relaxed);
+        for zone in 0..NUM_THERMOCOUPLES {
+            state.temp_zones[zone]
+                .enabled
+                .store((enabled_tc_zones & (1 << zone)) != 0, Relaxed);
+        }
+        for fan in 0..NUM_FANS {
+            state.fans[fan]
+                .enabled
+                .store((enabled_fan_zones & (1 << fan)) != 0, Relaxed);
+        }
         state.run_started.store(true, Relaxed);
     })
 }

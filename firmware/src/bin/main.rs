@@ -25,6 +25,9 @@ use esp_hal::{clock::CpuClock, ram, rng::Rng, timer::timg::TimerGroup};
 use esp_println::println;
 use esp_radio::Controller;
 
+use lib::constants::NUM_FANS;
+use lib::constants::NUM_THERMOCOUPLES;
+
 esp_bootloader_esp_idf::esp_app_desc!();
 
 #[panic_handler]
@@ -47,40 +50,30 @@ fn panic(panic_info: &core::panic::PanicInfo) -> ! {
 
 use core::cell::RefCell;
 use critical_section::Mutex;
-static FAN0_TACH: Mutex<RefCell<Option<Input>>> = Mutex::new(RefCell::new(None));
 
-static FAN1_TACH: Mutex<RefCell<Option<Input>>> = Mutex::new(RefCell::new(None));
-
-static FAN0_PULSE_TIMES: Mutex<RefCell<CircularBuffer<10, Instant>>> =
-    Mutex::new(RefCell::new(CircularBuffer::<10, Instant>::new()));
-
-static FAN1_PULSE_TIMES: Mutex<RefCell<CircularBuffer<10, Instant>>> =
-    Mutex::new(RefCell::new(CircularBuffer::<10, Instant>::new()));
+static FAN_TACHS: Mutex<RefCell<Option<[Input; NUM_FANS]>>> = Mutex::new(RefCell::new(None));
+static FAN_PULSE_TIMES: Mutex<RefCell<[CircularBuffer<10, Instant>; NUM_FANS]>> =
+    Mutex::new(RefCell::new([
+        CircularBuffer::<10, Instant>::new(),
+        CircularBuffer::<10, Instant>::new(),
+    ]));
 
 #[handler]
 fn handler() {
     critical_section::with(|cs| {
-        let mut fan0_tach = FAN0_TACH.borrow_ref_mut(cs);
-        let mut fan1_tach = FAN1_TACH.borrow_ref_mut(cs);
-        let mut fan0_pulse_times = FAN0_PULSE_TIMES.borrow_ref_mut(cs);
-        let mut fan1_pulse_times = FAN1_PULSE_TIMES.borrow_ref_mut(cs);
-        match fan0_tach.as_mut() {
-            Some(fan0_tach) => {
-                if fan0_tach.is_interrupt_set() {
-                    fan0_pulse_times.push_back(Instant::now());
-                    fan0_tach.clear_interrupt();
+        let mut fan_tachs = FAN_TACHS.borrow_ref_mut(cs);
+        let mut fan_pulse_times = FAN_PULSE_TIMES.borrow_ref_mut(cs);
+
+        match fan_tachs.as_mut() {
+            Some(fan_tachs) => {
+                for fan in 0..NUM_FANS {
+                    if fan_tachs[fan].is_interrupt_set() {
+                        fan_pulse_times[fan].push_back(Instant::now());
+                        fan_tachs[fan].clear_interrupt();
+                    }
                 }
             }
-            _ => {}
-        }
-        match fan1_tach.as_mut() {
-            Some(fan1_tach) => {
-                if fan1_tach.is_interrupt_set() {
-                    fan1_pulse_times.push_back(Instant::now());
-                    fan1_tach.clear_interrupt();
-                }
-            }
-            _ => {}
+            _ => {} // If the interrupt gets triggered before setup is done, do nothing
         }
     });
 }
@@ -110,27 +103,25 @@ async fn main(spawner: Spawner) -> ! {
     // Set up fan tach interrupts
     esp_hal::interrupt::enable(Interrupt::GPIO, Priority::Priority3).unwrap();
 
-    let mut fan0_tach = Input::new(
-        peripherals.GPIO20,
-        InputConfig::default().with_pull(Pull::Up),
-    );
-    let mut fan1_tach = Input::new(
-        peripherals.GPIO21,
-        InputConfig::default().with_pull(Pull::Up),
-    );
+    let mut fan_tachs = [
+        Input::new(
+            peripherals.GPIO20,
+            InputConfig::default().with_pull(Pull::Up),
+        ),
+        Input::new(
+            peripherals.GPIO21,
+            InputConfig::default().with_pull(Pull::Up),
+        ),
+    ];
 
     critical_section::with(|cs| {
-        fan0_tach.listen(Event::RisingEdge);
-        fan1_tach.listen(Event::RisingEdge);
-        FAN0_TACH.borrow_ref_mut(cs).replace(fan0_tach);
-        FAN1_TACH.borrow_ref_mut(cs).replace(fan1_tach);
-        // Add an initial timestamp in case we never hit the interrupt
-        FAN0_PULSE_TIMES
-            .borrow_ref_mut(cs)
-            .push_back(Instant::now());
-        FAN1_PULSE_TIMES
-            .borrow_ref_mut(cs)
-            .push_back(Instant::now());
+        let mut fan_pulse_times = FAN_PULSE_TIMES.borrow_ref_mut(cs);
+        for fan in 0..NUM_FANS {
+            fan_tachs[fan].listen(Event::RisingEdge);
+            // Add an initial timestamp in case we never hit the interrupt
+            fan_pulse_times[fan].push_back(Instant::now());
+        }
+        FAN_TACHS.borrow_ref_mut(cs).replace(fan_tachs);
     });
 
     unsafe {
@@ -150,7 +141,7 @@ async fn main(spawner: Spawner) -> ! {
     .unwrap()
     .with_sck(peripherals.GPIO5)
     .with_miso(peripherals.GPIO10);
-    let mut spi_cs_pins = [
+    let mut spi_cs_pins: [Output; lib::constants::NUM_THERMOCOUPLES] = [
         Output::new(peripherals.GPIO4, Level::High, OutputConfig::default()),
         Output::new(peripherals.GPIO6, Level::High, OutputConfig::default()),
         Output::new(peripherals.GPIO7, Level::High, OutputConfig::default()),
@@ -228,9 +219,9 @@ async fn main(spawner: Spawner) -> ! {
     led.set_pixel(0, lib::led::color::OFF);
 
     'main: loop {
-        let mut temperatures = [0.0; 3];
-        let mut tc_faults = [false; 3];
-        for zone in 0..3 {
+        let mut temperatures = [0.0; NUM_THERMOCOUPLES];
+        let mut tc_faults = [false; NUM_THERMOCOUPLES];
+        for zone in 0..NUM_THERMOCOUPLES {
             spi_cs_pins[zone].set_low();
             let mut buffer = [0; 4];
             spi_bus.read(&mut buffer).unwrap();
@@ -247,54 +238,37 @@ async fn main(spawner: Spawner) -> ! {
             }
         }
 
-        let mut fan_faults = [false; 2];
+        let mut fan_faults = [false; NUM_FANS];
         critical_section::with(|cs| {
-            let fan0_periods = FAN0_PULSE_TIMES.borrow_ref(cs);
+            let fan_pulse_times = FAN_PULSE_TIMES.borrow_ref(cs);
 
-            match fan0_periods.back() {
-                Some(last_pulse) => {
-                    if last_pulse.elapsed().as_secs() > 1 {
-                        fan_faults[0] = true;
+            for fan in 0..NUM_FANS {
+                match fan_pulse_times[fan].back() {
+                    Some(last_pulse) => {
+                        if last_pulse.elapsed().as_secs() > 1 {
+                            fan_faults[fan] = true;
+                        }
+                    }
+                    None => {
+                        // This shouldn't happen since we add a timestamp on startup, so if it does, that's definitely a fault
+                        fan_faults[fan] = true;
                     }
                 }
-                None => {
-                    fan_faults[0] = true;
+                lib::web::set_fan_fault(fan, fan_faults[fan]);
+
+                let mut fan_total_period = 0.0;
+                for period in fan_pulse_times[fan]
+                    .iter()
+                    .zip(fan_pulse_times[fan].iter().skip(1))
+                {
+                    fan_total_period += (period.1.duration_since_epoch()
+                        - period.0.duration_since_epoch())
+                    .as_millis() as f32;
                 }
+                let fan_rpm =
+                    60000.0 / (fan_total_period / (fan_pulse_times[fan].len() - 1) as f32) / 2.0; // 2 pulses per revolution
+                lib::web::set_fan_speed(fan, fan_rpm as i32);
             }
-            lib::web::set_fan_fault(0, fan_faults[0]);
-
-            let mut fan0_total_period = 0.0;
-            for period in fan0_periods.iter().zip(fan0_periods.iter().skip(1)) {
-                fan0_total_period += (period.1.duration_since_epoch()
-                    - period.0.duration_since_epoch())
-                .as_millis() as f32;
-            }
-            let fan0_rpm = 60000.0 / (fan0_total_period / (fan0_periods.len() - 1) as f32) / 2.0; // 2 pulses per revolution
-            lib::web::set_fan_speed(0, fan0_rpm as i32);
-
-            let fan1_periods = FAN1_PULSE_TIMES.borrow_ref(cs);
-
-            match fan1_periods.back() {
-                Some(last_pulse) => {
-                    if last_pulse.elapsed().as_secs() > 1 {
-                        fan_faults[1] = true;
-                    }
-                }
-                None => {
-                    fan_faults[1] = true;
-                }
-            }
-            lib::web::set_fan_fault(1, fan_faults[1]);
-
-            let mut fan1_total_period = 0.0;
-            for period in fan1_periods.iter().zip(fan1_periods.iter().skip(1)) {
-                fan1_total_period += (period.1.duration_since_epoch()
-                    - period.0.duration_since_epoch())
-                .as_millis() as f32;
-            }
-            let fan1_rpm = 60000.0 / (fan1_total_period / (fan1_periods.len() - 1) as f32) / 2.0; // 2 pulses per revolution
-
-            lib::web::set_fan_speed(1, fan1_rpm as i32);
         });
 
         match state {
@@ -314,7 +288,7 @@ async fn main(spawner: Spawner) -> ! {
                 led.set_pixel(0, lib::led::color::GREEN); // TODO: use a lookup table to set color based on state
 
                 // Check for TC faults
-                for zone in 0..3 {
+                for zone in 0..NUM_THERMOCOUPLES {
                     if config.enabled_tc_zones[zone] && tc_faults[zone] {
                         state = lib::state::State::Error {
                             reason: lib::state::RunFailureReason::ThermocoupleFault { zone },
@@ -324,7 +298,7 @@ async fn main(spawner: Spawner) -> ! {
                 }
 
                 // Check for fan faults
-                for fan in 0..2 {
+                for fan in 0..NUM_FANS {
                     if config.fan_enabled[fan] && fan_faults[fan] {
                         state = lib::state::State::Error {
                             reason: lib::state::RunFailureReason::FanFault { number: fan },
