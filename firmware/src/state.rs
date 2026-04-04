@@ -2,14 +2,21 @@ pub struct RunConfig {
     pub temperature: i32,
     pub duration: esp_hal::time::Duration,
     pub enabled_tc_zones: [bool; 3],
+    pub fan_enabled: [bool; 2],
 }
 
 impl RunConfig {
-    pub fn new(temperature: i32, time_seconds: i32, enabled_tc_zones: [bool; 3]) -> Self {
+    pub fn new(
+        temperature: i32,
+        time_seconds: i32,
+        enabled_tc_zones: [bool; 3],
+        fan_enabled: [bool; 2],
+    ) -> Self {
         Self {
             temperature,
             duration: esp_hal::time::Duration::from_secs(time_seconds as u64),
             enabled_tc_zones,
+            fan_enabled,
         }
     }
 }

@@ -16,7 +16,8 @@ use picoserve::{
 struct RunConfig {
     temperature: i32,
     time: i32,
-    enabled_tc_zones: i32, // bitfield, bits correspond to zones
+    enabled_tc_zones: i32,  // bitfield, bits correspond to zones
+    enabled_fan_zones: i32, // bitfield, bits correspond to fans
 }
 
 #[derive(serde::Serialize)]
@@ -134,6 +135,7 @@ async fn set_config(
         temperature,
         time,
         enabled_tc_zones,
+        enabled_fan_zones,
     }): Form<RunConfig>,
 ) -> impl IntoResponseWithState<AppState> {
     picoserve::response::Json(0).with_state_update(async move |state: &AppState| {
@@ -149,6 +151,12 @@ async fn set_config(
         state.temp_zones[2]
             .enabled
             .store((enabled_tc_zones & 0x4) != 0, Relaxed);
+        state.fans[0]
+            .enabled
+            .store((enabled_fan_zones & 0x1) != 0, Relaxed);
+        state.fans[1]
+            .enabled
+            .store((enabled_fan_zones & 0x2) != 0, Relaxed);
         state.run_started.store(true, Relaxed);
     })
 }
@@ -241,6 +249,10 @@ pub fn get_run_config() -> crate::state::RunConfig {
             WEB_STATE.temp_zones[0].enabled.load(Relaxed),
             WEB_STATE.temp_zones[1].enabled.load(Relaxed),
             WEB_STATE.temp_zones[2].enabled.load(Relaxed),
+        ],
+        [
+            WEB_STATE.fans[0].enabled.load(Relaxed),
+            WEB_STATE.fans[1].enabled.load(Relaxed),
         ],
     )
 }

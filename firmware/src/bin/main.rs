@@ -229,7 +229,7 @@ async fn main(spawner: Spawner) -> ! {
 
     'main: loop {
         let mut temperatures = [0.0; 3];
-        let mut faults = [false; 3];
+        let mut tc_faults = [false; 3];
         for zone in 0..3 {
             spi_cs_pins[zone].set_low();
             let mut buffer = [0; 4];
@@ -243,13 +243,26 @@ async fn main(spawner: Spawner) -> ! {
                 temperatures[zone] = temp;
             } else {
                 lib::web::set_zone_fault(zone, true);
-                faults[zone] = true;
+                tc_faults[zone] = true;
             }
         }
 
+        let mut fan_faults = [false; 2];
         critical_section::with(|cs| {
-            // TODO: check if latest pulse is too old
             let fan0_periods = FAN0_PULSE_TIMES.borrow_ref(cs);
+
+            match fan0_periods.back() {
+                Some(last_pulse) => {
+                    if last_pulse.elapsed().as_secs() > 1 {
+                        fan_faults[0] = true;
+                    }
+                }
+                None => {
+                    fan_faults[0] = true;
+                }
+            }
+            lib::web::set_fan_fault(0, fan_faults[0]);
+
             let mut fan0_total_period = 0.0;
             for period in fan0_periods.iter().zip(fan0_periods.iter().skip(1)) {
                 fan0_total_period += (period.1.duration_since_epoch()
@@ -257,8 +270,22 @@ async fn main(spawner: Spawner) -> ! {
                 .as_millis() as f32;
             }
             let fan0_rpm = 60000.0 / (fan0_total_period / (fan0_periods.len() - 1) as f32) / 2.0; // 2 pulses per revolution
+            lib::web::set_fan_speed(0, fan0_rpm as i32);
 
             let fan1_periods = FAN1_PULSE_TIMES.borrow_ref(cs);
+
+            match fan1_periods.back() {
+                Some(last_pulse) => {
+                    if last_pulse.elapsed().as_secs() > 1 {
+                        fan_faults[1] = true;
+                    }
+                }
+                None => {
+                    fan_faults[1] = true;
+                }
+            }
+            lib::web::set_fan_fault(1, fan_faults[1]);
+
             let mut fan1_total_period = 0.0;
             for period in fan1_periods.iter().zip(fan1_periods.iter().skip(1)) {
                 fan1_total_period += (period.1.duration_since_epoch()
@@ -267,7 +294,6 @@ async fn main(spawner: Spawner) -> ! {
             }
             let fan1_rpm = 60000.0 / (fan1_total_period / (fan1_periods.len() - 1) as f32) / 2.0; // 2 pulses per revolution
 
-            lib::web::set_fan_speed(0, fan0_rpm as i32);
             lib::web::set_fan_speed(1, fan1_rpm as i32);
         });
 
@@ -289,9 +315,19 @@ async fn main(spawner: Spawner) -> ! {
 
                 // Check for TC faults
                 for zone in 0..3 {
-                    if config.enabled_tc_zones[zone] && faults[zone] {
+                    if config.enabled_tc_zones[zone] && tc_faults[zone] {
                         state = lib::state::State::Error {
                             reason: lib::state::RunFailureReason::ThermocoupleFault { zone },
+                        };
+                        continue 'main;
+                    }
+                }
+
+                // Check for fan faults
+                for fan in 0..2 {
+                    if config.fan_enabled[fan] && fan_faults[fan] {
+                        state = lib::state::State::Error {
+                            reason: lib::state::RunFailureReason::FanFault { number: fan },
                         };
                         continue 'main;
                     }

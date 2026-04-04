@@ -18,14 +18,19 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     }
 
-    let enabled_tc_zones = formData.get("use_t0") ? 0x1 : 0x0;
-    enabled_tc_zones |= formData.get("use_t1") ? 0x2 : 0x0;
-    enabled_tc_zones |= formData.get("use_t2") ? 0x4 : 0x0;
+    let enabled_tc_zones = formData.get("use_t1") ? 0x1 : 0x0;
+    enabled_tc_zones |= formData.get("use_t2") ? 0x2 : 0x0;
+    enabled_tc_zones |= formData.get("use_t3") ? 0x4 : 0x0;
+
+    let enabled_fan_zones = formData.get("use_fan1") ? 0x1 : 0x0;
+    enabled_fan_zones |= formData.get("use_fan2") ? 0x2 : 0x0;
+
 
     let request =
       "temperature=" + formData.get("temperature") + "&" +
       "time=" + formData.get("time") + "&" +
-      "enabled_tc_zones=" + enabled_tc_zones;
+      "enabled_tc_zones=" + enabled_tc_zones + "&" +
+      "enabled_fan_zones=" + enabled_fan_zones;
 
     console.log(request);
 
@@ -51,7 +56,7 @@ document.addEventListener("DOMContentLoaded", function() {
           return response.json();
         })
         .then(data => {
-          // console.log(data);
+          console.log(data);
           readout.textContent = `${data.current_temp}/${data.setpoint_temp} °C for ${data.run_time_elapsed}/${data.run_time_total} seconds`
           for (let i = 0; i < 3; i++) {
             zone_temps[i].innerHTML = `${data.temp_zones[i].last_temp} °C`
