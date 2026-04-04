@@ -27,6 +27,13 @@ pub struct ThermocoupleZoneValue {
 }
 
 #[derive(serde::Serialize)]
+pub struct FanValue {
+    enabled: bool,
+    last_speed: i32,
+    fault: bool,
+}
+
+#[derive(serde::Serialize)]
 struct AppStateValue {
     // Inputs, set by the web interface
     run_started: bool,
@@ -35,7 +42,7 @@ struct AppStateValue {
 
     // Outputs, set by the control loop
     temp_zones: [ThermocoupleZoneValue; 3],
-    fan_tach_periods: [i32; 2],
+    fans: [FanValue; 2],
     current_temp: i32,
     run_time_elapsed: i32,
 }
@@ -43,6 +50,12 @@ struct AppStateValue {
 pub struct ThermocoupleZone {
     enabled: AtomicBool,
     last_temp: AtomicI32,
+    fault: AtomicBool,
+}
+
+pub struct Fan {
+    enabled: AtomicBool,
+    last_speed: AtomicI32,
     fault: AtomicBool,
 }
 
@@ -54,7 +67,7 @@ pub struct AppState {
 
     // Outputs, set by the control loop
     temp_zones: [ThermocoupleZone; 3],
-    fan_tach_periods: [AtomicI32; 2],
+    fans: [Fan; 2],
     current_temp: AtomicI32,
     run_time_elapsed: AtomicI32,
 }
@@ -68,7 +81,7 @@ impl picoserve::extract::FromRef<AppState> for AppStateValue {
             run_time_total,
             run_started,
             temp_zones,
-            fan_tach_periods,
+            fans,
             ..
         }: &AppState,
     ) -> Self {
@@ -90,9 +103,17 @@ impl picoserve::extract::FromRef<AppState> for AppStateValue {
                     fault: temp_zones[2].fault.load(Relaxed),
                 },
             ],
-            fan_tach_periods: [
-                fan_tach_periods[0].load(Relaxed),
-                fan_tach_periods[1].load(Relaxed),
+            fans: [
+                FanValue {
+                    enabled: fans[0].enabled.load(Relaxed),
+                    last_speed: fans[0].last_speed.load(Relaxed),
+                    fault: fans[0].fault.load(Relaxed),
+                },
+                FanValue {
+                    enabled: fans[1].enabled.load(Relaxed),
+                    last_speed: fans[1].last_speed.load(Relaxed),
+                    fault: fans[1].fault.load(Relaxed),
+                },
             ],
             current_temp: current_temp.load(Relaxed),
             setpoint_temp: setpoint_temp.load(Relaxed),
@@ -103,20 +124,31 @@ impl picoserve::extract::FromRef<AppState> for AppStateValue {
     }
 }
 
-async fn get_state(State(value): State<AppStateValue>) -> impl IntoResponse { // TODO: only include the "outputs" in the response, not the "inputs"
+async fn get_state(State(value): State<AppStateValue>) -> impl IntoResponse {
+    // TODO: only include the "outputs" in the response, not the "inputs"
     picoserve::response::Json(value)
 }
 
 async fn set_config(
-    Form(RunConfig { temperature, time, enabled_tc_zones }): Form<RunConfig>,
+    Form(RunConfig {
+        temperature,
+        time,
+        enabled_tc_zones,
+    }): Form<RunConfig>,
 ) -> impl IntoResponseWithState<AppState> {
     picoserve::response::Json(0).with_state_update(async move |state: &AppState| {
         // TODO: better response than Json(0) - validate?
         state.setpoint_temp.store(temperature, Relaxed); // TODO: validate?
         state.run_time_total.store(time, Relaxed);
-        state.temp_zones[0].enabled.store((enabled_tc_zones & 0x1) != 0, Relaxed);
-        state.temp_zones[1].enabled.store((enabled_tc_zones & 0x2) != 0, Relaxed);
-        state.temp_zones[2].enabled.store((enabled_tc_zones & 0x4) != 0, Relaxed);
+        state.temp_zones[0]
+            .enabled
+            .store((enabled_tc_zones & 0x1) != 0, Relaxed);
+        state.temp_zones[1]
+            .enabled
+            .store((enabled_tc_zones & 0x2) != 0, Relaxed);
+        state.temp_zones[2]
+            .enabled
+            .store((enabled_tc_zones & 0x4) != 0, Relaxed);
         state.run_started.store(true, Relaxed);
     })
 }
@@ -141,7 +173,18 @@ pub static WEB_STATE: AppState = AppState {
             fault: AtomicBool::new(false),
         },
     ],
-    fan_tach_periods: [AtomicI32::new(0), AtomicI32::new(0)],
+    fans: [
+        Fan {
+            enabled: AtomicBool::new(false),
+            last_speed: AtomicI32::new(0),
+            fault: AtomicBool::new(false),
+        },
+        Fan {
+            enabled: AtomicBool::new(false),
+            last_speed: AtomicI32::new(0),
+            fault: AtomicBool::new(false),
+        },
+    ],
     current_temp: AtomicI32::new(0),
     setpoint_temp: AtomicI32::new(0),
     run_time_elapsed: AtomicI32::new(0),
@@ -149,8 +192,16 @@ pub static WEB_STATE: AppState = AppState {
     run_started: AtomicBool::new(false),
 };
 
-pub fn set_last_tach_pulse_time(fan: usize, time: i32) {
-    WEB_STATE.fan_tach_periods[fan].store(time, Relaxed);
+pub fn set_fan_speed(fan: usize, speed: i32) {
+    WEB_STATE.fans[fan].last_speed.store(speed, Relaxed);
+}
+
+pub fn set_fan_enabled(fan: usize, enabled: bool) {
+    WEB_STATE.fans[fan].enabled.store(enabled, Relaxed);
+}
+
+pub fn set_fan_fault(fan: usize, fault: bool) {
+    WEB_STATE.fans[fan].fault.store(fault, Relaxed);
 }
 
 pub fn set_zone_temperature(zone: usize, value: i32) {

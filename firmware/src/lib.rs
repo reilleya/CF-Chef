@@ -14,6 +14,6 @@ macro_rules! mk_static {
 
 pub mod led;
 pub mod max31855;
+pub mod state;
 pub mod web;
 pub mod wifi;
-pub mod state;
