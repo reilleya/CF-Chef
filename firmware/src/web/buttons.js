@@ -25,7 +25,6 @@ document.addEventListener("DOMContentLoaded", function() {
     let enabled_fan_zones = formData.get("use_fan1") ? 0x1 : 0x0;
     enabled_fan_zones |= formData.get("use_fan2") ? 0x2 : 0x0;
 
-
     let request =
       "temperature=" + formData.get("temperature") + "&" +
       "time=" + formData.get("time") + "&" +
@@ -38,15 +37,7 @@ document.addEventListener("DOMContentLoaded", function() {
   });
 
   const readout = document.getElementById("readout");
-  const zone_temps = [
-    document.getElementById("zone1Temp"),
-    document.getElementById("zone2Temp"),
-    document.getElementById("zone3Temp"),
-  ];
-  const fan_speeds = [
-    document.getElementById("fan1Speed"),
-    document.getElementById("fan2Speed"),
-  ];
+
   let readoutInterval = setInterval(function() {
       fetch('/get_state')
         .then(response => {
@@ -56,13 +47,15 @@ document.addEventListener("DOMContentLoaded", function() {
           return response.json();
         })
         .then(data => {
-          console.log(data);
+          //console.log(data);
           readout.textContent = `${data.current_temp}/${data.setpoint_temp} °C for ${data.run_time_elapsed}/${data.run_time_total} seconds`
           for (let i = 0; i < 3; i++) {
-            zone_temps[i].innerHTML = `${data.temp_zones[i].last_temp} °C`
+            document.getElementById(`zone${i + 1}Temp`).innerHTML = `${data.temp_zones[i].last_temp} °C`
+            document.getElementById(`zone${i + 1}Fault`).innerHTML = `Fault: ${data.temp_zones[i].fault ? 'Yes' : 'No'}`
           }
           for (let i = 0; i < 2; i++) {
-            fan_speeds[i].innerHTML = `${data.fans[i].last_speed} RPM`
+            document.getElementById(`fan${i + 1}Speed`).innerHTML = `${data.fans[i].last_speed} RPM`
+            document.getElementById(`fan${i + 1}Fault`).innerHTML = `Fault: ${data.fans[i].fault ? 'Yes' : 'No'}`
           }
         })
         .catch(error => {

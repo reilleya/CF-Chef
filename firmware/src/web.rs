@@ -162,35 +162,20 @@ async fn set_config(
 pub struct Application;
 
 pub static WEB_STATE: AppState = AppState {
-    temp_zones: [
+    temp_zones: [const {
         ThermocoupleZone {
             enabled: AtomicBool::new(false),
             last_temp: AtomicI32::new(0),
             fault: AtomicBool::new(false),
-        },
-        ThermocoupleZone {
-            enabled: AtomicBool::new(false),
-            last_temp: AtomicI32::new(0),
-            fault: AtomicBool::new(false),
-        },
-        ThermocoupleZone {
-            enabled: AtomicBool::new(false),
-            last_temp: AtomicI32::new(0),
-            fault: AtomicBool::new(false),
-        },
-    ],
-    fans: [
+        }
+    }; NUM_THERMOCOUPLES],
+    fans: [const {
         Fan {
             enabled: AtomicBool::new(false),
             last_speed: AtomicI32::new(0),
             fault: AtomicBool::new(false),
-        },
-        Fan {
-            enabled: AtomicBool::new(false),
-            last_speed: AtomicI32::new(0),
-            fault: AtomicBool::new(false),
-        },
-    ],
+        }
+    }; NUM_FANS],
     current_temp: AtomicI32::new(0),
     setpoint_temp: AtomicI32::new(0),
     run_time_elapsed: AtomicI32::new(0),

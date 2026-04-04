@@ -52,11 +52,9 @@ use core::cell::RefCell;
 use critical_section::Mutex;
 
 static FAN_TACHS: Mutex<RefCell<Option<[Input; NUM_FANS]>>> = Mutex::new(RefCell::new(None));
-static FAN_PULSE_TIMES: Mutex<RefCell<[CircularBuffer<10, Instant>; NUM_FANS]>> =
-    Mutex::new(RefCell::new([
-        CircularBuffer::<10, Instant>::new(),
-        CircularBuffer::<10, Instant>::new(),
-    ]));
+static FAN_PULSE_TIMES: Mutex<RefCell<[CircularBuffer<10, Instant>; NUM_FANS]>> = Mutex::new(
+    RefCell::new([const { CircularBuffer::<10, Instant>::new() }; NUM_FANS]),
+);
 
 #[handler]
 fn handler() {
