@@ -2,21 +2,10 @@ document.addEventListener("DOMContentLoaded", function() {
 
   const configForm = document.getElementById('configForm');
 
-  configForm.addEventListener('submit', function(event) {
+  configForm.addEventListener('submit', async function(event) {
     event.preventDefault();
 
     const formData = new FormData(this);
-
-    var xhr = new XMLHttpRequest();
-    xhr.open("POST", '/set_config', true);
-
-    xhr.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
-
-    xhr.onreadystatechange = function() {
-        if (this.readyState === XMLHttpRequest.DONE && this.status === 200) {
-            console.log(this)
-        }
-    }
 
     let enabled_tc_zones = formData.get("use_t1") ? 0x1 : 0x0;
     enabled_tc_zones |= formData.get("use_t2") ? 0x2 : 0x0;
@@ -25,15 +14,15 @@ document.addEventListener("DOMContentLoaded", function() {
     let enabled_fan_zones = formData.get("use_fan1") ? 0x1 : 0x0;
     enabled_fan_zones |= formData.get("use_fan2") ? 0x2 : 0x0;
 
-    let request =
-      "temperature=" + formData.get("temperature") + "&" +
-      "time=" + formData.get("time") + "&" +
-      "enabled_tc_zones=" + enabled_tc_zones + "&" +
-      "enabled_fan_zones=" + enabled_fan_zones;
+    console.log(JSON.stringify({temperature: formData.get("temperature"), time: formData.get("time"), enabled_tc_zones: enabled_tc_zones, enabled_fan_zones: enabled_fan_zones}))
 
-    console.log(request);
-
-    xhr.send(request);
+    await fetch("/set_config", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({temperature: Number(formData.get("temperature")), time: Number(formData.get("time")), enabled_tc_zones: enabled_tc_zones, enabled_fan_zones: enabled_fan_zones})
+    });
   });
 
   const readout = document.getElementById("readout");

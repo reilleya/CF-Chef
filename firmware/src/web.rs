@@ -5,7 +5,6 @@ use esp_alloc as _;
 use core::sync::atomic::{AtomicBool, AtomicI32, Ordering::Relaxed};
 use picoserve::{
     AppBuilder, AppRouter, Router,
-    extract::Form,
     extract::State,
     response::{File, IntoResponse, IntoResponseWithState, with_state::WithStateUpdate},
     routing,
@@ -134,26 +133,21 @@ async fn get_state(State(value): State<AppStateValue>) -> impl IntoResponse {
 }
 
 async fn set_config(
-    Form(RunConfig {
-        temperature,
-        time,
-        enabled_tc_zones,
-        enabled_fan_zones,
-    }): Form<RunConfig>,
+    picoserve::extract::Json(run_config): picoserve::extract::Json<RunConfig>,
 ) -> impl IntoResponseWithState<AppState> {
     picoserve::response::Json(0).with_state_update(async move |state: &AppState| {
         // TODO: better response than Json(0) - validate?
-        state.setpoint_temp.store(temperature, Relaxed); // TODO: validate?
-        state.run_time_total.store(time, Relaxed);
+        state.setpoint_temp.store(run_config.temperature, Relaxed); // TODO: validate?
+        state.run_time_total.store(run_config.time, Relaxed);
         for zone in 0..NUM_THERMOCOUPLES {
             state.temp_zones[zone]
                 .enabled
-                .store((enabled_tc_zones & (1 << zone)) != 0, Relaxed);
+                .store((run_config.enabled_tc_zones & (1 << zone)) != 0, Relaxed);
         }
         for fan in 0..NUM_FANS {
             state.fans[fan]
                 .enabled
-                .store((enabled_fan_zones & (1 << fan)) != 0, Relaxed);
+                .store((run_config.enabled_fan_zones & (1 << fan)) != 0, Relaxed);
         }
         state.run_started.store(true, Relaxed);
     })
