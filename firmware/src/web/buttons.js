@@ -1,27 +1,69 @@
+let schedule = [];
+
+function renderSchedule() {
+  const tbody = document.getElementById('scheduleBody');
+  tbody.innerHTML = '';
+  schedule.forEach(function(step, i) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${i + 1}</td>
+      <td><select onchange="schedule[${i}].ramp = this.value === 'ramp'">
+        <option value="hold" ${!step.ramp ? 'selected' : ''}>Hold</option>
+        <option value="ramp" ${step.ramp ? 'selected' : ''}>Ramp</option>
+      </select></td>
+      <td><input type="number" min="1" value="${step.duration}"
+          onchange="schedule[${i}].duration = Number(this.value)"></td>
+      <td><input type="number" value="${step.temperature}"
+          onchange="schedule[${i}].temperature = Number(this.value)"></td>
+      <td><button type="button" onclick="deleteStep(${i})">✕</button></td>`;
+    tbody.appendChild(tr);
+  });
+  document.getElementById('stepCount').textContent = `${schedule.length} / 32 steps`;
+  const atMax = schedule.length >= 32;
+  document.getElementById('addHoldBtn').disabled = atMax;
+  document.getElementById('addRampBtn').disabled = atMax;
+}
+
+function addHold() {
+  if (schedule.length >= 32) return;
+  schedule.push({duration: 60, temperature: 25, ramp: false});
+  renderSchedule();
+}
+
+function addRamp() {
+  if (schedule.length >= 32) return;
+  schedule.push({duration: 60, temperature: 25, ramp: true});
+  renderSchedule();
+}
+
+function deleteStep(i) {
+  schedule.splice(i, 1);
+  renderSchedule();
+}
+
 document.addEventListener("DOMContentLoaded", function() {
+  document.getElementById('addHoldBtn').addEventListener('click', addHold);
+  document.getElementById('addRampBtn').addEventListener('click', addRamp);
 
   const configForm = document.getElementById('configForm');
 
   configForm.addEventListener('submit', async function(event) {
     event.preventDefault();
-
     const formData = new FormData(this);
 
-    let enabled_tc_zones = formData.get("use_t1") ? 0x1 : 0x0;
-    enabled_tc_zones |= formData.get("use_t2") ? 0x2 : 0x0;
-    enabled_tc_zones |= formData.get("use_t3") ? 0x4 : 0x0;
+    let enabled_tc_zones  = formData.get("use_t1")   ? 0x1 : 0;
+    enabled_tc_zones     |= formData.get("use_t2")   ? 0x2 : 0;
+    enabled_tc_zones     |= formData.get("use_t3")   ? 0x4 : 0;
+    let enabled_fan_zones  = formData.get("use_fan1") ? 0x1 : 0;
+    enabled_fan_zones    |= formData.get("use_fan2") ? 0x2 : 0;
 
-    let enabled_fan_zones = formData.get("use_fan1") ? 0x1 : 0x0;
-    enabled_fan_zones |= formData.get("use_fan2") ? 0x2 : 0x0;
-
-    console.log(JSON.stringify({temperature: formData.get("temperature"), time: formData.get("time"), enabled_tc_zones: enabled_tc_zones, enabled_fan_zones: enabled_fan_zones}))
+    const padded = schedule.slice(0, 32);
+    while (padded.length < 32) padded.push({duration: 0, temperature: 0, ramp: false});
 
     await fetch("/set_config", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({temperature: Number(formData.get("temperature")), time: Number(formData.get("time")), enabled_tc_zones: enabled_tc_zones, enabled_fan_zones: enabled_fan_zones})
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({enabled_tc_zones, enabled_fan_zones, schedule: padded})
     });
   });
 
@@ -36,8 +78,7 @@ document.addEventListener("DOMContentLoaded", function() {
           return response.json();
         })
         .then(data => {
-          //console.log(data);
-          readout.textContent = `${data.current_temp}/${data.setpoint_temp} °C for ${data.run_time_elapsed}/${data.run_time_total} seconds`
+          readout.textContent = `${data.current_temp}/${data.current_setpoint} °C for ${data.run_time_elapsed}/${data.run_time_total} seconds`
           for (let i = 0; i < 3; i++) {
             document.getElementById(`zone${i + 1}Temp`).innerHTML = `${data.temp_zones[i].last_temp} °C`
             document.getElementById(`zone${i + 1}Fault`).innerHTML = `Fault: ${data.temp_zones[i].fault ? 'Yes' : 'No'}`

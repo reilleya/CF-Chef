@@ -308,10 +308,12 @@ async fn main(spawner: Spawner) -> ! {
                 // Check if run is complete
                 let elapsed = esp_hal::time::Instant::now() - run_start_time;
                 lib::web::set_elapsed_time(elapsed.as_secs() as i32);
-                if elapsed >= config.duration {
+                if elapsed >= config.get_total_run_time() {
                     state = lib::state::State::Complete;
                     continue 'main;
                 }
+
+                let current_setpoint = config.get_setpoint_for_time(elapsed);
 
                 // All expected TCs have good readings, calculate average temperature
                 let average_temp: f32 = config
@@ -327,9 +329,10 @@ async fn main(spawner: Spawner) -> ! {
                         .count() as f32;
 
                 lib::web::set_current_temperature(average_temp as i32);
+                lib::web::set_current_setpoint_temperature(current_setpoint as i32);
 
                 // Bang-bang control
-                if average_temp < config.temperature as f32 {
+                if average_temp < current_setpoint {
                     heater_output.set_high();
                 } else {
                     heater_output.set_low();

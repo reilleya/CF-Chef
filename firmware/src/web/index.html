@@ -10,8 +10,25 @@
 <body>
     <main>
         <form id="configForm" style="display: flex; flex-flow: column nowrap; align-items: center;">
-            <label>Temperature (°C): <input name="temperature" type="number"></label>
-            <label>Time (Seconds): <input name="time" type="number"></label>
+            <div id="scheduleSection">
+                <table id="scheduleTable">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Type</th>
+                            <th>Duration (s)</th>
+                            <th>Temperature (°C)</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody id="scheduleBody"></tbody>
+                </table>
+                <div id="scheduleActions">
+                    <button type="button" id="addHoldBtn">Add Hold</button>
+                    <button type="button" id="addRampBtn">Add Ramp</button>
+                    <span id="stepCount">0 / 32 steps</span>
+                </div>
+            </div>
             <label>Use T1: <input name="use_t1" type="checkbox"></label>
             <label>Use T2: <input name="use_t2" type="checkbox"></label>
             <label>Use T3: <input name="use_t3" type="checkbox"></label>

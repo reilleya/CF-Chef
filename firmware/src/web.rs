@@ -11,15 +11,28 @@ use picoserve::{
     routing::{get, post},
 };
 
+use crate::constants::MAX_SCHEDULE_STEPS;
 use crate::constants::NUM_FANS;
 use crate::constants::NUM_THERMOCOUPLES;
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, serde::Serialize)]
+pub struct InputScheduleStepValue {
+    pub duration: i32,
+    pub temperature: i32,
+    pub ramp: bool,
+}
+
+pub struct InputScheduleStep {
+    pub duration: AtomicI32,
+    pub temperature: AtomicI32,
+    pub ramp: AtomicBool,
+}
+
+#[derive(serde::Deserialize, serde::Serialize)]
 struct RunConfig {
-    temperature: i32,
-    time: i32,
     enabled_tc_zones: i32,  // bitfield, bits correspond to zones
     enabled_fan_zones: i32, // bitfield, bits correspond to fans
+    schedule: [InputScheduleStepValue; MAX_SCHEDULE_STEPS],
 }
 
 #[derive(serde::Serialize)]
@@ -40,13 +53,13 @@ pub struct FanValue {
 struct AppStateValue {
     // Inputs, set by the web interface
     should_start_run: bool,
-    setpoint_temp: i32,
-    run_time_total: i32,
+    schedule: [InputScheduleStepValue; MAX_SCHEDULE_STEPS],
 
     // Outputs, set by the control loop
     temp_zones: [ThermocoupleZoneValue; NUM_THERMOCOUPLES],
     fans: [FanValue; NUM_FANS],
     current_temp: i32,
+    current_setpoint: i32,
     run_time_elapsed: i32,
 }
 
@@ -65,23 +78,23 @@ pub struct Fan {
 pub struct AppState {
     // Inputs, set by the web interface
     should_start_run: AtomicBool,
-    setpoint_temp: AtomicI32,
-    run_time_total: AtomicI32,
+    schedule: [InputScheduleStep; MAX_SCHEDULE_STEPS],
 
     // Outputs, set by the control loop
     temp_zones: [ThermocoupleZone; NUM_THERMOCOUPLES],
     fans: [Fan; NUM_FANS],
     current_temp: AtomicI32,
+    current_setpoint: AtomicI32,
     run_time_elapsed: AtomicI32,
 }
 
 impl picoserve::extract::FromRef<AppState> for AppStateValue {
     fn from_ref(
         AppState {
+            schedule,
             current_temp,
-            setpoint_temp,
+            current_setpoint,
             run_time_elapsed,
-            run_time_total,
             should_start_run,
             temp_zones,
             fans,
@@ -89,6 +102,11 @@ impl picoserve::extract::FromRef<AppState> for AppStateValue {
         }: &AppState,
     ) -> Self {
         Self {
+            schedule: core::array::from_fn(|i| InputScheduleStepValue {
+                duration: schedule[i].duration.load(Relaxed),
+                temperature: schedule[i].temperature.load(Relaxed),
+                ramp: schedule[i].ramp.load(Relaxed),
+            }),
             temp_zones: core::array::from_fn(|i| ThermocoupleZoneValue {
                 enabled: temp_zones[i].enabled.load(Relaxed),
                 last_temp: temp_zones[i].last_temp.load(Relaxed),
@@ -100,9 +118,8 @@ impl picoserve::extract::FromRef<AppState> for AppStateValue {
                 fault: fans[i].fault.load(Relaxed),
             }),
             current_temp: current_temp.load(Relaxed),
-            setpoint_temp: setpoint_temp.load(Relaxed),
+            current_setpoint: current_setpoint.load(Relaxed),
             run_time_elapsed: run_time_elapsed.load(Relaxed),
-            run_time_total: run_time_total.load(Relaxed),
             should_start_run: should_start_run.load(Relaxed),
         }
     }
@@ -118,8 +135,17 @@ async fn set_config(
 ) -> impl IntoResponseWithState<AppState> {
     picoserve::response::Json(0).with_state_update(async move |state: &AppState| {
         // TODO: better response than Json(0) - validate?
-        state.setpoint_temp.store(run_config.temperature, Relaxed); // TODO: validate?
-        state.run_time_total.store(run_config.time, Relaxed);
+        run_config
+            .schedule
+            .iter()
+            .enumerate()
+            .for_each(|(i, step)| {
+                state.schedule[i].duration.store(step.duration, Relaxed);
+                state.schedule[i]
+                    .temperature
+                    .store(step.temperature, Relaxed);
+                state.schedule[i].ramp.store(step.ramp, Relaxed);
+            });
         for zone in 0..NUM_THERMOCOUPLES {
             state.temp_zones[zone]
                 .enabled
@@ -137,6 +163,13 @@ async fn set_config(
 pub struct Application;
 
 pub static WEB_STATE: AppState = AppState {
+    schedule: [const {
+        InputScheduleStep {
+            duration: AtomicI32::new(0),
+            temperature: AtomicI32::new(0),
+            ramp: AtomicBool::new(false),
+        }
+    }; MAX_SCHEDULE_STEPS],
     temp_zones: [const {
         ThermocoupleZone {
             enabled: AtomicBool::new(false),
@@ -152,9 +185,8 @@ pub static WEB_STATE: AppState = AppState {
         }
     }; NUM_FANS],
     current_temp: AtomicI32::new(0),
-    setpoint_temp: AtomicI32::new(0),
+    current_setpoint: AtomicI32::new(0),
     run_time_elapsed: AtomicI32::new(0),
-    run_time_total: AtomicI32::new(0),
     should_start_run: AtomicBool::new(false),
 };
 
@@ -186,6 +218,10 @@ pub fn set_current_temperature(value: i32) {
     WEB_STATE.current_temp.store(value, Relaxed);
 }
 
+pub fn set_current_setpoint_temperature(value: i32) {
+    WEB_STATE.current_setpoint.store(value, Relaxed);
+}
+
 pub fn set_elapsed_time(value: i32) {
     WEB_STATE.run_time_elapsed.store(value, Relaxed);
 }
@@ -201,8 +237,11 @@ pub fn should_start_run() -> bool {
 
 pub fn get_run_config() -> crate::state::RunConfig {
     crate::state::RunConfig::new(
-        WEB_STATE.setpoint_temp.load(Relaxed),
-        WEB_STATE.run_time_total.load(Relaxed),
+        core::array::from_fn(|i| InputScheduleStepValue {
+            duration: WEB_STATE.schedule[i].duration.load(Relaxed),
+            temperature: WEB_STATE.schedule[i].temperature.load(Relaxed),
+            ramp: WEB_STATE.schedule[i].ramp.load(Relaxed),
+        }),
         core::array::from_fn(|i| WEB_STATE.temp_zones[i].enabled.load(Relaxed)),
         core::array::from_fn(|i| WEB_STATE.fans[i].enabled.load(Relaxed)),
     )
