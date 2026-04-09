@@ -271,7 +271,7 @@ async fn main(spawner: Spawner) -> ! {
 
         match state {
             lib::state::State::Config => {
-                if lib::web::get_run_started() {
+                if lib::web::should_start_run() {
                     state = lib::state::State::Running {
                         config: lib::web::get_run_config(),
                         run_start_time: esp_hal::time::Instant::now(),

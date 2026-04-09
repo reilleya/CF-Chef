@@ -39,7 +39,7 @@ pub struct FanValue {
 #[derive(serde::Serialize)]
 struct AppStateValue {
     // Inputs, set by the web interface
-    run_started: bool,
+    should_start_run: bool,
     setpoint_temp: i32,
     run_time_total: i32,
 
@@ -64,7 +64,7 @@ pub struct Fan {
 
 pub struct AppState {
     // Inputs, set by the web interface
-    run_started: AtomicBool,
+    should_start_run: AtomicBool,
     setpoint_temp: AtomicI32,
     run_time_total: AtomicI32,
 
@@ -82,47 +82,28 @@ impl picoserve::extract::FromRef<AppState> for AppStateValue {
             setpoint_temp,
             run_time_elapsed,
             run_time_total,
-            run_started,
+            should_start_run,
             temp_zones,
             fans,
             ..
         }: &AppState,
     ) -> Self {
         Self {
-            temp_zones: [
-                ThermocoupleZoneValue {
-                    enabled: temp_zones[0].enabled.load(Relaxed),
-                    last_temp: temp_zones[0].last_temp.load(Relaxed),
-                    fault: temp_zones[0].fault.load(Relaxed),
-                },
-                ThermocoupleZoneValue {
-                    enabled: temp_zones[1].enabled.load(Relaxed),
-                    last_temp: temp_zones[1].last_temp.load(Relaxed),
-                    fault: temp_zones[1].fault.load(Relaxed),
-                },
-                ThermocoupleZoneValue {
-                    enabled: temp_zones[2].enabled.load(Relaxed),
-                    last_temp: temp_zones[2].last_temp.load(Relaxed),
-                    fault: temp_zones[2].fault.load(Relaxed),
-                },
-            ],
-            fans: [
-                FanValue {
-                    enabled: fans[0].enabled.load(Relaxed),
-                    last_speed: fans[0].last_speed.load(Relaxed),
-                    fault: fans[0].fault.load(Relaxed),
-                },
-                FanValue {
-                    enabled: fans[1].enabled.load(Relaxed),
-                    last_speed: fans[1].last_speed.load(Relaxed),
-                    fault: fans[1].fault.load(Relaxed),
-                },
-            ],
+            temp_zones: core::array::from_fn(|i| ThermocoupleZoneValue {
+                enabled: temp_zones[i].enabled.load(Relaxed),
+                last_temp: temp_zones[i].last_temp.load(Relaxed),
+                fault: temp_zones[i].fault.load(Relaxed),
+            }),
+            fans: core::array::from_fn(|i| FanValue {
+                enabled: fans[i].enabled.load(Relaxed),
+                last_speed: fans[i].last_speed.load(Relaxed),
+                fault: fans[i].fault.load(Relaxed),
+            }),
             current_temp: current_temp.load(Relaxed),
             setpoint_temp: setpoint_temp.load(Relaxed),
             run_time_elapsed: run_time_elapsed.load(Relaxed),
             run_time_total: run_time_total.load(Relaxed),
-            run_started: run_started.load(Relaxed),
+            should_start_run: should_start_run.load(Relaxed),
         }
     }
 }
@@ -149,7 +130,7 @@ async fn set_config(
                 .enabled
                 .store((run_config.enabled_fan_zones & (1 << fan)) != 0, Relaxed);
         }
-        state.run_started.store(true, Relaxed);
+        state.should_start_run.store(true, Relaxed);
     })
 }
 
@@ -174,7 +155,7 @@ pub static WEB_STATE: AppState = AppState {
     setpoint_temp: AtomicI32::new(0),
     run_time_elapsed: AtomicI32::new(0),
     run_time_total: AtomicI32::new(0),
-    run_started: AtomicBool::new(false),
+    should_start_run: AtomicBool::new(false),
 };
 
 pub fn set_fan_speed(fan: usize, speed: i32) {
@@ -209,28 +190,21 @@ pub fn set_elapsed_time(value: i32) {
     WEB_STATE.run_time_elapsed.store(value, Relaxed);
 }
 
-pub fn get_run_started() -> bool {
-    let started = WEB_STATE.run_started.load(Relaxed);
+pub fn should_start_run() -> bool {
+    let should_start = WEB_STATE.should_start_run.load(Relaxed);
     // To avoid inadvertently starting a new run when we get back to the config state, reset the flag
-    if started {
-        WEB_STATE.run_started.store(false, Relaxed);
+    if should_start {
+        WEB_STATE.should_start_run.store(false, Relaxed);
     }
-    started
+    should_start
 }
 
 pub fn get_run_config() -> crate::state::RunConfig {
     crate::state::RunConfig::new(
         WEB_STATE.setpoint_temp.load(Relaxed),
         WEB_STATE.run_time_total.load(Relaxed),
-        [
-            WEB_STATE.temp_zones[0].enabled.load(Relaxed),
-            WEB_STATE.temp_zones[1].enabled.load(Relaxed),
-            WEB_STATE.temp_zones[2].enabled.load(Relaxed),
-        ],
-        [
-            WEB_STATE.fans[0].enabled.load(Relaxed),
-            WEB_STATE.fans[1].enabled.load(Relaxed),
-        ],
+        core::array::from_fn(|i| WEB_STATE.temp_zones[i].enabled.load(Relaxed)),
+        core::array::from_fn(|i| WEB_STATE.fans[i].enabled.load(Relaxed)),
     )
 }
 
