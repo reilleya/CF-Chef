@@ -24,15 +24,9 @@ function renderSchedule() {
   document.getElementById('addRampBtn').disabled = atMax;
 }
 
-function addHold() {
+function addStep() {
   if (schedule.length >= 32) return;
   schedule.push({duration: 60, temperature: 25, ramp: false});
-  renderSchedule();
-}
-
-function addRamp() {
-  if (schedule.length >= 32) return;
-  schedule.push({duration: 60, temperature: 25, ramp: true});
   renderSchedule();
 }
 
@@ -42,8 +36,7 @@ function deleteStep(i) {
 }
 
 document.addEventListener("DOMContentLoaded", function() {
-  document.getElementById('addHoldBtn').addEventListener('click', addHold);
-  document.getElementById('addRampBtn').addEventListener('click', addRamp);
+  document.getElementById('addStepBtn').addEventListener('click', addStep);
 
   const configForm = document.getElementById('configForm');
 
