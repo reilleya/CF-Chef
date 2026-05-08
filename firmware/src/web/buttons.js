@@ -19,9 +19,7 @@ function renderSchedule() {
     tbody.appendChild(tr);
   });
   document.getElementById('stepCount').textContent = `${schedule.length} / 32 steps`;
-  const atMax = schedule.length >= 32;
-  document.getElementById('addHoldBtn').disabled = atMax;
-  document.getElementById('addRampBtn').disabled = atMax;
+  document.getElementById('addStepBtn').disabled = schedule.length >= 32;
 }
 
 function addStep() {
@@ -72,6 +70,9 @@ document.addEventListener("DOMContentLoaded", function() {
         })
         .then(data => {
           readout.textContent = `${data.current_temp}/${data.current_setpoint} °C for ${data.run_time_elapsed}/${data.run_time_total} seconds`
+          const stateNames = ['Configuration', 'Running', 'Complete', 'Error'];
+          let stateText = stateNames[data.run_state] ?? 'Unknown';
+          document.getElementById('machineState').textContent = `State: ${stateText}`;
           for (let i = 0; i < 3; i++) {
             document.getElementById(`zone${i + 1}Temp`).innerHTML = `${data.temp_zones[i].last_temp} °C`
             document.getElementById(`zone${i + 1}Fault`).innerHTML = `Fault: ${data.temp_zones[i].fault ? 'Yes' : 'No'}`

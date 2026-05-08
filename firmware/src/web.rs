@@ -61,6 +61,7 @@ struct AppStateValue {
     current_temp: i32,
     current_setpoint: i32,
     run_time_elapsed: i32,
+    run_state: i32, // 0=Config, 1=Running, 2=Complete, 3=Error
 }
 
 pub struct ThermocoupleZone {
@@ -86,6 +87,7 @@ pub struct AppState {
     current_temp: AtomicI32,
     current_setpoint: AtomicI32,
     run_time_elapsed: AtomicI32,
+    run_state: AtomicI32,
 }
 
 impl picoserve::extract::FromRef<AppState> for AppStateValue {
@@ -98,6 +100,7 @@ impl picoserve::extract::FromRef<AppState> for AppStateValue {
             should_start_run,
             temp_zones,
             fans,
+            run_state,
             ..
         }: &AppState,
     ) -> Self {
@@ -121,6 +124,7 @@ impl picoserve::extract::FromRef<AppState> for AppStateValue {
             current_setpoint: current_setpoint.load(Relaxed),
             run_time_elapsed: run_time_elapsed.load(Relaxed),
             should_start_run: should_start_run.load(Relaxed),
+            run_state: run_state.load(Relaxed),
         }
     }
 }
@@ -188,6 +192,7 @@ pub static WEB_STATE: AppState = AppState {
     current_setpoint: AtomicI32::new(0),
     run_time_elapsed: AtomicI32::new(0),
     should_start_run: AtomicBool::new(false),
+    run_state: AtomicI32::new(0),
 };
 
 pub fn set_fan_speed(fan: usize, speed: i32) {
@@ -224,6 +229,10 @@ pub fn set_current_setpoint_temperature(value: i32) {
 
 pub fn set_elapsed_time(value: i32) {
     WEB_STATE.run_time_elapsed.store(value, Relaxed);
+}
+
+pub fn set_machine_state(state: &crate::state::State) {
+    WEB_STATE.run_state.store(i32::from(state), Relaxed);
 }
 
 pub fn should_start_run() -> bool {

@@ -348,6 +348,7 @@ async fn main(spawner: Spawner) -> ! {
                 println!("Run failed: {reason:?}");
             }
         }
+        lib::web::set_machine_state(&state);
 
         Timer::after(Duration::from_millis(100)).await;
     }

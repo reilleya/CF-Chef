@@ -88,3 +88,14 @@ pub enum State {
         reason: RunFailureReason, // TODO: should there be a way to have multiple failures so they know what hardware to fix?
     },
 }
+
+impl From<&State> for i32 {
+    fn from(state: &State) -> Self {
+        match state {
+            State::Config => 0,
+            State::Running { .. } => 1,
+            State::Complete => 2,
+            State::Error { .. } => 3,
+        }
+    }
+}
