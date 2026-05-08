@@ -36,41 +36,43 @@
             <input type="submit" value="Start Run">
         </form>
 
-        <table id="tempReadoutTable">
-            <tr>
-                <th>Zone 1</th>
-                <th>Zone 2</th>
-                <th>Zone 3</th>
-            </tr>
-            <tr>
-                <td id="zone1Temp">0 °C</td>
-                <td id="zone2Temp">0 °C</td>
-                <td id="zone3Temp">0 °C</td>
-            </tr>
-            <tr>
-                <td id="zone1Fault">Fault: Yes</td>
-                <td id="zone2Fault">Fault: Yes</td>
-                <td id="zone3Fault">Fault: Yes</td>
-            </tr>
-        </table>
-
-        <table id="fanReadoutTable">
-            <tr>
-                <th>Fan 1</th>
-                <th>Fan 2</th>
-            </tr>
-            <tr>
-                <td id="fan1Speed">0 RPM</td>
-                <td id="fan2Speed">0 RPM</td>
-            </tr>
-            <tr>
-                <td id="fan1Fault">Fault: Yes</td>
-                <td id="fan2Fault">Fault: Yes</td>
-            </tr>
-        </table>
-
-        <h1 id="readout">Current/Setpoint °C for TIME</h1>
-        <p id="machineState">State: —</p>
+        <div id="statusBox">
+            <div class="status-title">Status</div>
+            <div class="status-row">
+                <span class="status-label">State</span>
+                <span id="machineState" class="status-value">—</span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">Avg / Setpoint</span>
+                <span id="tempReadout" class="status-value">— / — °C</span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">Time</span>
+                <span id="timeReadout" class="status-value">— / — s</span>
+            </div>
+            <div class="status-section-label">Thermocouples</div>
+            <div class="status-row">
+                <span class="status-label">Zone 1</span>
+                <span class="status-value"><span id="zone1Temp">—</span> &middot; <span id="zone1Fault">—</span></span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">Zone 2</span>
+                <span class="status-value"><span id="zone2Temp">—</span> &middot; <span id="zone2Fault">—</span></span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">Zone 3</span>
+                <span class="status-value"><span id="zone3Temp">—</span> &middot; <span id="zone3Fault">—</span></span>
+            </div>
+            <div class="status-section-label">Fans</div>
+            <div class="status-row">
+                <span class="status-label">Fan 1</span>
+                <span class="status-value"><span id="fan1Speed">—</span> &middot; <span id="fan1Fault">—</span></span>
+            </div>
+            <div class="status-row">
+                <span class="status-label">Fan 2</span>
+                <span class="status-value"><span id="fan2Speed">—</span> &middot; <span id="fan2Fault">—</span></span>
+            </div>
+        </div>
     </main>
 </body>
 </html>

@@ -218,7 +218,7 @@ async fn main(spawner: Spawner) -> ! {
 
     'main: loop {
         let mut temperatures = [0.0; NUM_THERMOCOUPLES];
-        let mut tc_faults = [false; NUM_THERMOCOUPLES];
+        let mut tc_faults = [true; NUM_THERMOCOUPLES];
         for zone in 0..NUM_THERMOCOUPLES {
             spi_cs_pins[zone].set_low();
             let mut buffer = [0; 4];
@@ -230,10 +230,9 @@ async fn main(spawner: Spawner) -> ! {
             if let lib::max31855::MAX31855Reading::Valid { temp, .. } = reading {
                 lib::web::set_zone_temperature(zone, temp as i32);
                 temperatures[zone] = temp;
-            } else {
-                lib::web::set_zone_fault(zone, true);
-                tc_faults[zone] = true;
+                tc_faults[zone] = false;
             }
+            lib::web::set_zone_fault(zone, tc_faults[zone]);
         }
 
         let mut fan_faults = [false; NUM_FANS];

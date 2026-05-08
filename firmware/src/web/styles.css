@@ -116,3 +116,50 @@ main {
     font-size: 0.85rem;
     margin-left: auto;
 }
+
+#statusBox {
+    background: var(--card-background);
+    border: 1px solid rgba(255, 123, 59, 0.25);
+    border-radius: 8px;
+    padding: 1rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    align-self: start;
+}
+
+.status-title {
+    color: var(--accent-color);
+    font-weight: bold;
+    font-size: 1rem;
+    border-bottom: 2px solid var(--primary-color);
+    padding-bottom: 0.4rem;
+    margin-bottom: 0.25rem;
+}
+
+.status-section-label {
+    color: var(--secondary-color);
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-top: 0.5rem;
+    margin-bottom: 0.1rem;
+}
+
+.status-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1.5rem;
+    font-size: 0.9rem;
+}
+
+.status-label {
+    color: rgba(236, 240, 241, 0.55);
+    white-space: nowrap;
+}
+
+.status-value {
+    color: var(--text-color);
+    text-align: right;
+}

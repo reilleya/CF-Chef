@@ -58,9 +58,7 @@ document.addEventListener("DOMContentLoaded", function() {
     });
   });
 
-  const readout = document.getElementById("readout");
-
-  let readoutInterval = setInterval(function() {
+  let statusUpdateInterval = setInterval(function() {
       fetch('/get_state')
         .then(response => {
           if (!response.ok) {
@@ -69,17 +67,18 @@ document.addEventListener("DOMContentLoaded", function() {
           return response.json();
         })
         .then(data => {
-          readout.textContent = `${data.current_temp}/${data.current_setpoint} °C for ${data.run_time_elapsed}/${data.run_time_total} seconds`
+          document.getElementById('tempReadout').textContent = `${data.current_temp} / ${data.current_setpoint} °C`;
+          document.getElementById('timeReadout').textContent = `${data.run_time_elapsed} / ${data.run_time_total} s`;
           const stateNames = ['Configuration', 'Running', 'Complete', 'Error'];
           let stateText = stateNames[data.run_state] ?? 'Unknown';
-          document.getElementById('machineState').textContent = `State: ${stateText}`;
+          document.getElementById('machineState').textContent = stateText;
           for (let i = 0; i < 3; i++) {
-            document.getElementById(`zone${i + 1}Temp`).innerHTML = `${data.temp_zones[i].last_temp} °C`
-            document.getElementById(`zone${i + 1}Fault`).innerHTML = `Fault: ${data.temp_zones[i].fault ? 'Yes' : 'No'}`
+            document.getElementById(`zone${i + 1}Temp`).innerHTML = data.temp_zones[i].fault ? '-' : `${data.temp_zones[i].last_temp} °C`;
+            document.getElementById(`zone${i + 1}Fault`).innerHTML = `Fault: ${data.temp_zones[i].fault ? 'Yes' : 'No'}`;
           }
           for (let i = 0; i < 2; i++) {
-            document.getElementById(`fan${i + 1}Speed`).innerHTML = `${data.fans[i].last_speed} RPM`
-            document.getElementById(`fan${i + 1}Fault`).innerHTML = `Fault: ${data.fans[i].fault ? 'Yes' : 'No'}`
+            document.getElementById(`fan${i + 1}Speed`).innerHTML = data.fans[i].fault ? '-' : `${data.fans[i].last_speed} RPM`;
+            document.getElementById(`fan${i + 1}Fault`).innerHTML = `Fault: ${data.fans[i].fault ? 'Yes' : 'No'}`;
           }
         })
         .catch(error => {
