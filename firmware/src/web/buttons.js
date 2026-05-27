@@ -47,6 +47,11 @@ document.addEventListener("DOMContentLoaded", function() {
     enabled_tc_zones     |= formData.get("use_t3")   ? 0x4 : 0;
     let enabled_fan_zones  = formData.get("use_fan1") ? 0x1 : 0;
     enabled_fan_zones    |= formData.get("use_fan2") ? 0x2 : 0;
+    const tc_offsets = [
+      Number(formData.get("t1_offset")) || 0,
+      Number(formData.get("t2_offset")) || 0,
+      Number(formData.get("t3_offset")) || 0,
+    ];
 
     const padded = schedule.slice(0, 32);
     while (padded.length < 32) padded.push({duration: 0, temperature: 0, ramp: false});
@@ -54,7 +59,7 @@ document.addEventListener("DOMContentLoaded", function() {
     await fetch("/set_config", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({enabled_tc_zones, enabled_fan_zones, schedule: padded})
+      body: JSON.stringify({enabled_tc_zones, enabled_fan_zones, tc_offsets, schedule: padded})
     });
   });
 

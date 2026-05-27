@@ -29,9 +29,10 @@ pub struct InputScheduleStep {
 }
 
 #[derive(serde::Deserialize, serde::Serialize)]
-struct RunConfig {
+struct ConfigFormValue {
     enabled_tc_zones: i32,  // bitfield, bits correspond to zones
     enabled_fan_zones: i32, // bitfield, bits correspond to fans
+    tc_offsets: [i32; NUM_THERMOCOUPLES],
     schedule: [InputScheduleStepValue; MAX_SCHEDULE_STEPS],
 }
 
@@ -40,6 +41,7 @@ pub struct ThermocoupleZoneValue {
     enabled: bool,
     last_temp: i32,
     fault: bool,
+    offset: i32
 }
 
 #[derive(serde::Serialize)]
@@ -68,6 +70,7 @@ pub struct ThermocoupleZone {
     enabled: AtomicBool,
     last_temp: AtomicI32,
     fault: AtomicBool,
+    offset: AtomicI32,
 }
 
 pub struct Fan {
@@ -114,6 +117,7 @@ impl picoserve::extract::FromRef<AppState> for AppStateValue {
                 enabled: temp_zones[i].enabled.load(Relaxed),
                 last_temp: temp_zones[i].last_temp.load(Relaxed),
                 fault: temp_zones[i].fault.load(Relaxed),
+                offset: temp_zones[i].offset.load(Relaxed),
             }),
             fans: core::array::from_fn(|i| FanValue {
                 enabled: fans[i].enabled.load(Relaxed),
@@ -135,7 +139,7 @@ async fn get_state(State(value): State<AppStateValue>) -> impl IntoResponse {
 }
 
 async fn set_config(
-    picoserve::extract::Json(run_config): picoserve::extract::Json<RunConfig>,
+    picoserve::extract::Json(run_config): picoserve::extract::Json<ConfigFormValue>,
 ) -> impl IntoResponseWithState<AppState> {
     picoserve::response::Json(0).with_state_update(async move |state: &AppState| {
         // TODO: better response than Json(0) - validate?
@@ -154,6 +158,9 @@ async fn set_config(
             state.temp_zones[zone]
                 .enabled
                 .store((run_config.enabled_tc_zones & (1 << zone)) != 0, Relaxed);
+            state.temp_zones[zone]
+                .offset
+                .store(run_config.tc_offsets[zone], Relaxed);
         }
         for fan in 0..NUM_FANS {
             state.fans[fan]
@@ -179,6 +186,7 @@ pub static WEB_STATE: AppState = AppState {
             enabled: AtomicBool::new(false),
             last_temp: AtomicI32::new(0),
             fault: AtomicBool::new(false),
+            offset: AtomicI32::new(0),
         }
     }; NUM_THERMOCOUPLES],
     fans: [const {
@@ -252,6 +260,7 @@ pub fn get_run_config() -> crate::state::RunConfig {
             ramp: WEB_STATE.schedule[i].ramp.load(Relaxed),
         }),
         core::array::from_fn(|i| WEB_STATE.temp_zones[i].enabled.load(Relaxed)),
+        core::array::from_fn(|i| WEB_STATE.temp_zones[i].offset.load(Relaxed)),
         core::array::from_fn(|i| WEB_STATE.fans[i].enabled.load(Relaxed)),
     )
 }

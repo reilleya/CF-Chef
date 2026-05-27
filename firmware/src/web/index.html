@@ -28,9 +28,9 @@
                     <span id="stepCount">0 / 32 steps</span>
                 </div>
             </div>
-            <label>Use T1: <input name="use_t1" type="checkbox"></label>
-            <label>Use T2: <input name="use_t2" type="checkbox"></label>
-            <label>Use T3: <input name="use_t3" type="checkbox"></label>
+            <label>T1: <input name="use_t1" type="checkbox"> Offset: <input name="t1_offset" type="number" value="0" style="width:4em"> °C</label>
+            <label>T2: <input name="use_t2" type="checkbox"> Offset: <input name="t2_offset" type="number" value="0" style="width:4em"> °C</label>
+            <label>T3: <input name="use_t3" type="checkbox"> Offset: <input name="t3_offset" type="number" value="0" style="width:4em"> °C</label>
             <label>Use Fan 1: <input name="use_fan1" type="checkbox"></label>
             <label>Use Fan 2: <input name="use_fan2" type="checkbox"></label>
             <input type="submit" value="Start Run">
@@ -43,7 +43,7 @@
                 <span id="machineState" class="status-value">—</span>
             </div>
             <div class="status-row">
-                <span class="status-label">Avg / Setpoint</span>
+                <span class="status-label">Temperature / Setpoint</span>
                 <span id="tempReadout" class="status-value">— / — °C</span>
             </div>
             <div class="status-row">

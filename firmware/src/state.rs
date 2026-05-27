@@ -12,6 +12,7 @@ pub struct ScheduleStep {
 pub struct RunConfig {
     pub schedule: [ScheduleStep; MAX_SCHEDULE_STEPS],
     pub enabled_tc_zones: [bool; NUM_THERMOCOUPLES],
+    pub tc_offsets: [i32; NUM_THERMOCOUPLES],
     pub fan_enabled: [bool; NUM_FANS],
 }
 
@@ -19,6 +20,7 @@ impl RunConfig {
     pub fn new(
         schedule: [InputScheduleStepValue; MAX_SCHEDULE_STEPS],
         enabled_tc_zones: [bool; NUM_THERMOCOUPLES],
+        tc_offsets: [i32; NUM_THERMOCOUPLES],
         fan_enabled: [bool; NUM_FANS],
     ) -> Self {
         Self {
@@ -27,6 +29,7 @@ impl RunConfig {
                 temperature: schedule[i].temperature,
                 ramp: schedule[i].ramp,
             }),
+            tc_offsets,
             enabled_tc_zones,
             fan_enabled,
         }

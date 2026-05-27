@@ -228,8 +228,17 @@ async fn main(spawner: Spawner) -> ! {
             let reading = lib::max31855::interpret_max31855_read(buffer);
             //lib::max31855::log_max31855_reading(&reading);
             if let lib::max31855::MAX31855Reading::Valid { temp, .. } = reading {
-                lib::web::set_zone_temperature(zone, temp as i32);
-                temperatures[zone] = temp;
+                // If we have a run in progress, pull TC offsets from it and apply them
+                let offset: i32 = match state {
+                    lib::state::State::Running {
+                        ref config,
+                        run_start_time: _,
+                    } => config.tc_offsets[zone],
+                    _ => 0,
+                };
+                let adjusted = temp + offset as f32;
+                lib::web::set_zone_temperature(zone, adjusted as i32);
+                temperatures[zone] = adjusted;
                 tc_faults[zone] = false;
             }
             lib::web::set_zone_fault(zone, tc_faults[zone]);
