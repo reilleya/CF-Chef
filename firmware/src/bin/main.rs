@@ -295,9 +295,27 @@ async fn main(spawner: Spawner) -> ! {
 
                 // Check for TC faults
                 for zone in 0..NUM_THERMOCOUPLES {
-                    if config.enabled_tc_zones[zone] && tc_faults[zone] {
+                    if !config.enabled_tc_zones[zone] {
+                        continue;
+                    }
+
+                    if tc_faults[zone] {
                         state = lib::state::State::Error {
                             reason: lib::state::RunFailureReason::ThermocoupleFault { zone },
+                        };
+                        continue 'main;
+                    }
+
+                    if temperatures[zone] as i32 <= config.min_temp {
+                        state = lib::state::State::Error {
+                            reason: lib::state::RunFailureReason::UnderTempFault { zone },
+                        };
+                        continue 'main;
+                    }
+
+                    if temperatures[zone] as i32 >= config.max_temp {
+                        state = lib::state::State::Error {
+                            reason: lib::state::RunFailureReason::OverTempFault { zone },
                         };
                         continue 'main;
                     }

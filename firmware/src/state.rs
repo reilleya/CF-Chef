@@ -14,6 +14,8 @@ pub struct RunConfig {
     pub enabled_tc_zones: [bool; NUM_THERMOCOUPLES],
     pub tc_offsets: [i32; NUM_THERMOCOUPLES],
     pub fan_enabled: [bool; NUM_FANS],
+    pub min_temp: i32,
+    pub max_temp: i32,
 }
 
 impl RunConfig {
@@ -22,6 +24,8 @@ impl RunConfig {
         enabled_tc_zones: [bool; NUM_THERMOCOUPLES],
         tc_offsets: [i32; NUM_THERMOCOUPLES],
         fan_enabled: [bool; NUM_FANS],
+        min_temp: i32,
+        max_temp: i32,
     ) -> Self {
         Self {
             schedule: core::array::from_fn(|i| ScheduleStep {
@@ -32,6 +36,8 @@ impl RunConfig {
             tc_offsets,
             enabled_tc_zones,
             fan_enabled,
+            min_temp,
+            max_temp,
         }
     }
 
@@ -67,6 +73,8 @@ impl RunConfig {
 pub enum RunFailureReason {
     ThermocoupleFault { zone: usize },
     FanFault { number: usize },
+    UnderTempFault { zone: usize },
+    OverTempFault { zone: usize },
 }
 
 impl core::fmt::Debug for RunFailureReason {
@@ -76,6 +84,16 @@ impl core::fmt::Debug for RunFailureReason {
                 write!(f, "Thermocouple fault in zone {}", zone)
             }
             RunFailureReason::FanFault { number } => write!(f, "Fan {} had a fault", number),
+            RunFailureReason::UnderTempFault { zone } => {
+                write!(
+                    f,
+                    "Zone {} dropped below configured minimum temperature",
+                    zone
+                )
+            }
+            RunFailureReason::OverTempFault { zone } => {
+                write!(f, "Zone {} rose above configured minimum temperature", zone)
+            }
         }
     }
 }

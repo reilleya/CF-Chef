@@ -30,6 +30,8 @@ pub struct InputScheduleStep {
 
 #[derive(serde::Deserialize, serde::Serialize)]
 struct ConfigFormValue {
+    max_temp: i32,
+    min_temp: i32,
     enabled_tc_zones: i32,  // bitfield, bits correspond to zones
     enabled_fan_zones: i32, // bitfield, bits correspond to fans
     tc_offsets: [i32; NUM_THERMOCOUPLES],
@@ -41,7 +43,7 @@ pub struct ThermocoupleZoneValue {
     enabled: bool,
     last_temp: i32,
     fault: bool,
-    offset: i32
+    offset: i32,
 }
 
 #[derive(serde::Serialize)]
@@ -56,6 +58,8 @@ struct AppStateValue {
     // Inputs, set by the web interface
     should_start_run: bool,
     schedule: [InputScheduleStepValue; MAX_SCHEDULE_STEPS],
+    min_temp: i32,
+    max_temp: i32,
 
     // Outputs, set by the control loop
     temp_zones: [ThermocoupleZoneValue; NUM_THERMOCOUPLES],
@@ -83,6 +87,8 @@ pub struct AppState {
     // Inputs, set by the web interface
     should_start_run: AtomicBool,
     schedule: [InputScheduleStep; MAX_SCHEDULE_STEPS],
+    min_temp: AtomicI32,
+    max_temp: AtomicI32,
 
     // Outputs, set by the control loop
     temp_zones: [ThermocoupleZone; NUM_THERMOCOUPLES],
@@ -101,6 +107,8 @@ impl picoserve::extract::FromRef<AppState> for AppStateValue {
             current_setpoint,
             run_time_elapsed,
             should_start_run,
+            min_temp,
+            max_temp,
             temp_zones,
             fans,
             run_state,
@@ -128,6 +136,8 @@ impl picoserve::extract::FromRef<AppState> for AppStateValue {
             current_setpoint: current_setpoint.load(Relaxed),
             run_time_elapsed: run_time_elapsed.load(Relaxed),
             should_start_run: should_start_run.load(Relaxed),
+            min_temp: min_temp.load(Relaxed),
+            max_temp: max_temp.load(Relaxed),
             run_state: run_state.load(Relaxed),
         }
     }
@@ -139,11 +149,11 @@ async fn get_state(State(value): State<AppStateValue>) -> impl IntoResponse {
 }
 
 async fn set_config(
-    picoserve::extract::Json(run_config): picoserve::extract::Json<ConfigFormValue>,
+    picoserve::extract::Json(form_values): picoserve::extract::Json<ConfigFormValue>,
 ) -> impl IntoResponseWithState<AppState> {
     picoserve::response::Json(0).with_state_update(async move |state: &AppState| {
         // TODO: better response than Json(0) - validate?
-        run_config
+        form_values
             .schedule
             .iter()
             .enumerate()
@@ -157,16 +167,18 @@ async fn set_config(
         for zone in 0..NUM_THERMOCOUPLES {
             state.temp_zones[zone]
                 .enabled
-                .store((run_config.enabled_tc_zones & (1 << zone)) != 0, Relaxed);
+                .store((form_values.enabled_tc_zones & (1 << zone)) != 0, Relaxed);
             state.temp_zones[zone]
                 .offset
-                .store(run_config.tc_offsets[zone], Relaxed);
+                .store(form_values.tc_offsets[zone], Relaxed);
         }
         for fan in 0..NUM_FANS {
             state.fans[fan]
                 .enabled
-                .store((run_config.enabled_fan_zones & (1 << fan)) != 0, Relaxed);
+                .store((form_values.enabled_fan_zones & (1 << fan)) != 0, Relaxed);
         }
+        state.min_temp.store(form_values.min_temp, Relaxed);
+        state.max_temp.store(form_values.max_temp, Relaxed);
         state.should_start_run.store(true, Relaxed);
     })
 }
@@ -200,6 +212,8 @@ pub static WEB_STATE: AppState = AppState {
     current_setpoint: AtomicI32::new(0),
     run_time_elapsed: AtomicI32::new(0),
     should_start_run: AtomicBool::new(false),
+    min_temp: AtomicI32::new(0),
+    max_temp: AtomicI32::new(0),
     run_state: AtomicI32::new(0),
 };
 
@@ -262,6 +276,8 @@ pub fn get_run_config() -> crate::state::RunConfig {
         core::array::from_fn(|i| WEB_STATE.temp_zones[i].enabled.load(Relaxed)),
         core::array::from_fn(|i| WEB_STATE.temp_zones[i].offset.load(Relaxed)),
         core::array::from_fn(|i| WEB_STATE.fans[i].enabled.load(Relaxed)),
+        WEB_STATE.min_temp.load(Relaxed),
+        WEB_STATE.max_temp.load(Relaxed),
     )
 }
 

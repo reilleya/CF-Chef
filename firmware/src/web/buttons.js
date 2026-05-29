@@ -53,13 +53,16 @@ document.addEventListener("DOMContentLoaded", function() {
       Number(formData.get("t3_offset")) || 0,
     ];
 
+    let min_temp = Number(formData.get("min_temp")) || 0; // TODO: handle missing data better (reject?)
+    let max_temp = Number(formData.get("max_temp")) || 200;
+
     const padded = schedule.slice(0, 32);
     while (padded.length < 32) padded.push({duration: 0, temperature: 0, ramp: false});
 
     await fetch("/set_config", {
       method: "POST",
       headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({enabled_tc_zones, enabled_fan_zones, tc_offsets, schedule: padded})
+      body: JSON.stringify({min_temp, max_temp, enabled_tc_zones, enabled_fan_zones, tc_offsets, schedule: padded})
     });
   });
 
