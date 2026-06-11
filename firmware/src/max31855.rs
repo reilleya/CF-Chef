@@ -23,18 +23,19 @@ pub fn interpret_max31855_read(buffer: [u8; 4]) -> MAX31855Reading {
         };
     }
 
-    // TODO: does this slop handle negative temperatures?
     // TODO: use bitfields
 
     let bits: u32 = (buffer[0] as u32) << 24
         | (buffer[1] as u32) << 16
         | (buffer[2] as u32) << 8
         | (buffer[3] as u32) << 0;
-    let temp = ((bits >> 18) & 0x3FFF) as i16; // Extract bits 31-18 and interpret as signed
+    let temp = ((bits >> 18) & 0x1FFF) as i16; // Extract bits 30-18
     let temp = temp as f32 * 0.25; // Each bit represents 0.25 degrees Celsius
+    let temp = temp * if bits.bit(31) { -1.0 } else { 1.0 }; // Account for sign bit
 
-    let internal_temp = ((bits >> 4) & 0xFFF) as i16; // Extract bits 15-4 and interpret as signed
+    let internal_temp = ((bits >> 4) & 0x7FF) as i16; // Extract bits 14-4
     let internal_temp = internal_temp as f32 * 0.0625; // Each bit represents 0.0625 degrees Celsius
+    let internal_temp = internal_temp * if bits.bit(15) { -1.0 } else { 1.0 }; // Account for sign bit
 
     MAX31855Reading::Valid {
         temp,
