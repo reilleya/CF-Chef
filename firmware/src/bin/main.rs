@@ -280,8 +280,10 @@ async fn main(spawner: Spawner) -> ! {
         match state {
             lib::state::State::Config => {
                 if lib::web::should_start_run() {
+                    let config = lib::web::get_run_config();
+                    lib::web::set_total_run_time(config.get_total_run_time().as_secs() as i32);
                     state = lib::state::State::Running {
-                        config: lib::web::get_run_config(),
+                        config,
                         run_start_time: esp_hal::time::Instant::now(),
                     }
                 }

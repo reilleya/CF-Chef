@@ -76,8 +76,8 @@ document.addEventListener("DOMContentLoaded", function() {
         })
         .then(data => {
           document.getElementById('tempReadout').textContent = `${data.current_temp} / ${data.current_setpoint} °C`;
-          document.getElementById('timeReadout').textContent = `${data.run_time_elapsed} / ${data.run_time_total} s`;
-          const stateNames = ['Configuration', 'Running', 'Complete', 'Error'];
+          document.getElementById('timeReadout').textContent = `${data.run_time_elapsed} / ${data.total_run_time} s`;
+          const stateNames = ['Configuration', `Running (${Math.round(data.run_time_elapsed / data.total_run_time * 100)}%)`, 'Complete', 'Error'];
           let stateText = stateNames[data.run_state] ?? 'Unknown';
           document.getElementById('machineState').textContent = stateText;
           for (let i = 0; i < 3; i++) {
