@@ -133,7 +133,7 @@ async fn main(spawner: Spawner) -> ! {
     let mut spi_bus = Spi::new(
         peripherals.SPI2,
         SpiConfig::default()
-            .with_frequency(Rate::from_mhz(60))
+            .with_frequency(Rate::from_mhz(1))
             .with_mode(SpiMode::_0),
     )
     .unwrap()
