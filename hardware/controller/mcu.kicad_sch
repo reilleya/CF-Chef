@@ -4222,6 +4222,10 @@
 		(uuid "1e9b60df-8251-48a8-b178-ce321f2880c4")
 	)
 	(no_connect
+		(at 62.23 132.08)
+		(uuid "80c34f2d-727b-425b-a6ed-db712efba0f6")
+	)
+	(no_connect
 		(at 173.99 113.03)
 		(uuid "b6f4744a-4398-45d1-a470-ac88fa4f729a")
 	)
@@ -4722,16 +4726,6 @@
 			(type default)
 		)
 		(uuid "d65d9e6c-a6b0-48bf-ac98-9477eed6533b")
-	)
-	(wire
-		(pts
-			(xy 54.61 132.08) (xy 62.23 132.08)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "d8473266-92d1-47d1-8f25-a39060267461")
 	)
 	(wire
 		(pts
@@ -8276,72 +8270,6 @@
 			(project ""
 				(path "/3ee12552-bbaf-4643-8241-99077a41063f/0cb4d016-03f6-42de-b902-af7c075bf798"
 					(reference "U6")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "Connector:TestPoint")
-		(at 54.61 132.08 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom no)
-		(on_board yes)
-		(dnp no)
-		(uuid "dcbb6a4d-3d51-4b0d-865f-8fe348ab97d5")
-		(property "Reference" "TP6"
-			(at 53.594 127 90)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "TestPoint"
-			(at 56.134 127 90)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "TestPoint:TestPoint_THTPad_2.0x2.0mm_Drill1.0mm"
-			(at 59.69 132.08 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" "~"
-			(at 59.69 132.08 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Description" "test point"
-			(at 54.61 132.08 0)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "1"
-			(uuid "50916af3-d96c-4798-9b96-ba1636160e39")
-		)
-		(instances
-			(project "controller"
-				(path "/3ee12552-bbaf-4643-8241-99077a41063f/0cb4d016-03f6-42de-b902-af7c075bf798"
-					(reference "TP6")
 					(unit 1)
 				)
 			)
